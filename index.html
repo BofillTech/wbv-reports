@@ -81,6 +81,7 @@
   <div class="wrap" id="app"></div>
 
 <script>
+  // ---- Config -------------------------------------------------------------
   const SUPABASE_URL = "https://oyxyhxuzufidxfdcwszo.supabase.co";
   const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ";
   const ACCESS_CODE = "wbv2026";
@@ -97,11 +98,12 @@
   };
   const esc = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
+  // Report definitions. ready=true → data is flowing; false → waiting on a sync.
   const REPORTS = [
     { n:1, slug:'future-reservations', group:'Accounting (Christa)', ready:true,
       title:'Future Reservations',
       desc:'All upcoming reservations — guest, amount paid, date paid, balance due, booking date, source, check-in/out.',
-      view:'rpt_future_reservations', order:'checkin.asc',
+      view:'rpt_future_reservations', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
       cols:[['guest_name','Guest','strong'],['booking_source','Source'],['checkin','Check-in','date'],
             ['checkout','Check-out','date'],['amount_paid','Paid','money'],['balance_due','Balance','money'],
             ['last_payment_date','Date paid','date'],['date_of_booking','Booked','date'],['status','Status']] },
@@ -109,7 +111,7 @@
     { n:2, slug:'financial-revenue', group:'Accounting (Christa)', ready:false, needs:'transactions sync',
       title:'Financial / Revenue',
       desc:'Every payment — date, amount, CC type, source, room, guest, stay dates. Custom date range at run time.',
-      view:'rpt_financial_transactions', order:'payment_date.desc', dateField:'payment_date',
+      view:'rpt_financial_transactions', order:'payment_date.desc', dateField:'payment_date', dateTS:true, dateLabel:'payment date',
       cols:[['payment_date','Payment date','date'],['amount_paid','Amount','money'],['cc_type','CC type'],
             ['booking_source','Source'],['room','Room'],['guest_name','Guest','strong'],
             ['checkin','Check-in','date'],['checkout','Check-out','date']] },
@@ -117,40 +119,40 @@
     { n:3, slug:'arrivals', group:'Reservations & Guest Services (Amy)', ready:false, needs:'guests sync',
       title:'Arrivals (all guests)',
       desc:'Every guest on the reservation (not just the booker) with phone and email — who is in each villa.',
-      view:'rpt_arrivals', order:'checkin.asc',
+      view:'rpt_arrivals', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
       cols:[['checkin','Check-in','date'],['checkout','Check-out','date'],['room_type_id','Villa'],
             ['first_name','First'],['last_name','Last'],['email','Email'],['phone','Phone'],['is_primary','Booker','bool']] },
 
     { n:4, slug:'balance-due', group:'Reservations & Guest Services (Amy)', ready:true,
       title:'Balance Due',
       desc:'Guests who still owe a final balance, with contact info to follow up. (Contact fills in once the guests sync runs.)',
-      view:'rpt_balance_due', order:'checkin.asc',
+      view:'rpt_balance_due', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
       cols:[['guest_name','Guest','strong'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
             ['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
 
     { n:5, slug:'holds', group:'Reservations & Guest Services (Amy)', ready:true,
       title:'Holds / Confirmation Pending',
       desc:'Unconfirmed holds to follow up or cancel, with contact info. (Contact fills in once the guests sync runs.)',
-      view:'rpt_holds', order:'booking_datetime.desc',
+      view:'rpt_holds', order:'booking_datetime.desc', dateField:'checkin', dateLabel:'check-in date',
       cols:[['guest_name','Guest','strong'],['email','Email'],['phone','Phone'],
             ['checkin','Check-in','date'],['checkout','Check-out','date'],['booking_datetime','Booked','date']] },
 
     { n:6, slug:'deposit-gaps', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions sync',
       title:'Reservation → Deposit Reconciliation',
       desc:'Confirmed reservations with no deposit posted — flags gaps to chase.',
-      view:'rpt_deposit_gaps', order:'booking_datetime.desc',
+      view:'rpt_deposit_gaps', order:'booking_datetime.desc', dateField:'booking_datetime', dateTS:true, dateLabel:'booking date',
       cols:[['guest_name','Guest','strong'],['status','Status'],['booking_datetime','Booked','date'],['paid_to_date','Paid to date','money']] },
 
     { n:7, slug:'recon-cb-authnet', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions + Auth.net sync',
       title:'CB vs Authorize.net Reconciliation',
       desc:'Payments that appear on only one side (Cloudbeds or Authorize.net) — surfaces true mismatches.',
-      view:'rpt_recon_cb_vs_authnet', order:'ts.desc',
+      view:'rpt_recon_cb_vs_authnet', order:'ts.desc', dateField:'ts', dateTS:true, dateLabel:'transaction date',
       cols:[['side','Side'],['transaction_id','Txn ID'],['amount','Amount','money'],['card_last4','Card'],['auth_code','Auth code'],['ts','When','date']] },
 
     { n:8, slug:'occupancy', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rooms + room-blocks sync',
       title:'Accurate Occupancy',
       desc:'Occupancy that nets out offline / maintenance villas so the % reflects sellable inventory.',
-      view:'rpt_occupancy', order:'night.asc',
+      view:'rpt_occupancy', order:'night.asc', dateField:'night', dateLabel:'night',
       cols:[['night','Night','date'],['total_villas','Total'],['sellable_villas','Sellable'],['occupied_villas','Occupied'],['occupancy_pct','Occupancy %']] },
 
     { n:9, slug:'source-of-business', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions sync',
@@ -162,23 +164,24 @@
     { n:10, slug:'rate-discounting', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rate-plans sync + baseline',
       title:'Rate Discounting',
       desc:'Actual ADR per reservation vs a reference rate (baseline still to be defined).',
-      view:'rpt_rate_discounting', order:'checkin.desc',
+      view:'rpt_rate_discounting', order:'checkin.desc', dateField:'checkin', dateLabel:'check-in date',
       cols:[['guest_name','Guest','strong'],['villa','Villa'],['rate_plan','Rate plan'],['nights','Nights'],
             ['total','Total','money'],['adr','ADR','money'],['discount_pct','Discount %']] },
 
     { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:false, needs:'transactions + room-types sync',
       title:'Revenue by Room Type',
       desc:'Daily payment revenue broken out by villa / room type.',
-      view:'rpt_revenue_by_room_type', order:'day.desc',
+      view:'rpt_revenue_by_room_type', order:'day.desc', dateField:'day', dateLabel:'day',
       cols:[['villa','Villa'],['day','Day','date'],['revenue','Revenue','money']] },
 
     { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:false, needs:'transactions sync',
       title:'Payment Processing',
       desc:'Daily payment counts and totals by method (use with a trailing-7-day view).',
-      view:'rpt_payment_processing', order:'day.desc',
+      view:'rpt_payment_processing', order:'day.desc', dateField:'day', dateLabel:'day',
       cols:[['day','Day','date'],['payment_method','Method'],['txn_count','Count'],['total','Total','money']] },
   ];
 
+  // ---- Gate ---------------------------------------------------------------
   function tryGate(){
     const v=document.getElementById('code').value.trim();
     if(v===ACCESS_CODE){ document.getElementById('gate').style.display='none'; route(); }
@@ -186,6 +189,7 @@
   }
   document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')tryGate();});
 
+  // ---- Router -------------------------------------------------------------
   window.addEventListener('hashchange', route);
   function route(){
     if(document.getElementById('gate').style.display!=='none') return;
@@ -225,14 +229,22 @@
         +'It will populate automatically once that data is flowing.</div>';
       return;
     }
+    // optional date range toolbar
     let toolbar='<div class="toolbar"><div class="row-actions">';
     if(r.dateField){
-      toolbar+='From <input type="date" id="from"> To <input type="date" id="to"> '
-             +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button>';
+      toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
+             +'From <input type="date" id="from"> To <input type="date" id="to"> '
+             +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
+             +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
     toolbar+='</div><button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
     document.getElementById('app').innerHTML=head+toolbar+'<div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
     loadReport(r.slug);
+  }
+
+  function clearDates(slug){
+    const f=document.getElementById('from'), t=document.getElementById('to');
+    if(f) f.value=''; if(t) t.value=''; loadReport(slug);
   }
 
   async function loadReport(slug){
@@ -242,7 +254,7 @@
     if(r.dateField){
       const f=document.getElementById('from')?.value, t=document.getElementById('to')?.value;
       if(f) url+=`&${r.dateField}=gte.${f}`;
-      if(t) url+=`&${r.dateField}=lte.${t}T23:59:59`;
+      if(t) url+=`&${r.dateField}=lte.${t}${r.dateTS?'T23:59:59':''}`;
     }
     try{
       const res=await fetch(url,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}});
