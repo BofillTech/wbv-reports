@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>White Bay Villas — Reports</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#16212e; --line:#22303f; --txt:#e7eef6; --muted:#8aa0b4;
+    --accent:#38bdf8; --red:#ef4444; --amber:#f59e0b; --green:#22c55e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:inherit;text-decoration:none}
+  header{padding:20px 26px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  header h1{font-size:18px;margin:0;font-weight:650}
+  header .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .wrap{padding:22px 26px;max-width:1250px;margin:0 auto}
+  .crumbs{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .crumbs a{color:var(--accent)}
+  .grp{margin:26px 0 10px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;
+    cursor:pointer;transition:border-color .12s,transform .12s;display:block}
+  .card:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .card .num{color:var(--muted);font-size:12px;font-weight:700}
+  .card h3{margin:4px 0 6px;font-size:15.5px;font-weight:640}
+  .card p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;margin-top:12px}
+  .b-live{background:rgba(34,197,94,.15);color:#86efac}
+  .b-soon{background:rgba(245,158,11,.13);color:#fcd34d}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;overflow:hidden}
+  th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);font-size:13.5px;white-space:nowrap}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;background:#132030}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#182636}
+  .money{font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .tbl-wrap{overflow-x:auto;border-radius:12px}
+  button,.btn{background:var(--accent);color:#04121c;border:0;border-radius:9px;padding:8px 14px;
+    font-weight:640;cursor:pointer;font-size:13.5px}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input[type=date],input[type=search]{background:#0e1620;color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:7px 10px;font-size:13.5px}
+  #status{color:var(--muted);font-size:13px}
+  .soon-box{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:26px;color:var(--muted)}
+  .gate{position:fixed;inset:0;background:#0b1219;display:flex;align-items:center;justify-content:center;z-index:50}
+  .gate .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;width:330px;text-align:center}
+  .gate input{width:100%;padding:11px;margin:14px 0;border-radius:9px;border:1px solid var(--line);
+    background:#0e1620;color:var(--txt);font-size:15px;text-align:center}
+  .err{color:var(--red);font-size:13px;min-height:18px}
+  .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+</style>
+</head>
+<body>
+  <div class="gate" id="gate">
+    <div class="box">
+      <div style="font-weight:650;font-size:16px">White Bay Villas</div>
+      <div class="muted" style="font-size:13px;margin-top:4px">Reports</div>
+      <input id="code" type="password" placeholder="Access code" autofocus />
+      <div class="err" id="gateErr"></div>
+      <button onclick="tryGate()" style="width:100%">Enter</button>
+    </div>
+  </div>
+
+  <header>
+    <div>
+      <h1 id="hTitle">White Bay Villas — Reports</h1>
+      <div class="sub" id="hSub">Select a report</div>
+    </div>
+    <div class="row-actions">
+      <a class="btn ghost" href="#/">All reports</a>
+      <span id="status"></span>
+    </div>
+  </header>
+
+  <div class="wrap" id="app"></div>
+
+<script>
+  const SUPABASE_URL = "https://oyxyhxuzufidxfdcwszo.supabase.co";
+  const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ";
+  const ACCESS_CODE = "wbv2026";
+
+  const money = n => (n==null||n==='' ? '—' : '$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
+  const dfmt  = s => s ? new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '—';
+  const cell  = (v,t)=>{
+    if(v==null||v==='') return '<span class="muted">—</span>';
+    if(t==='money') return '<span class="money">'+money(v)+'</span>';
+    if(t==='date')  return '<span class="muted">'+dfmt(v)+'</span>';
+    if(t==='strong')return '<strong>'+esc(v)+'</strong>';
+    if(t==='bool')  return v===true||v==='true' ? '✔' : '—';
+    return esc(v);
+  };
+  const esc = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  const REPORTS = [
+    { n:1, slug:'future-reservations', group:'Accounting (Christa)', ready:true,
+      title:'Future Reservations',
+      desc:'All upcoming reservations — guest, amount paid, date paid, balance due, booking date, source, check-in/out.',
+      view:'rpt_future_reservations', order:'checkin.asc',
+      cols:[['guest_name','Guest','strong'],['booking_source','Source'],['checkin','Check-in','date'],
+            ['checkout','Check-out','date'],['amount_paid','Paid','money'],['balance_due','Balance','money'],
+            ['last_payment_date','Date paid','date'],['date_of_booking','Booked','date'],['status','Status']] },
+
+    { n:2, slug:'financial-revenue', group:'Accounting (Christa)', ready:false, needs:'transactions sync',
+      title:'Financial / Revenue',
+      desc:'Every payment — date, amount, CC type, source, room, guest, stay dates. Custom date range at run time.',
+      view:'rpt_financial_transactions', order:'payment_date.desc', dateField:'payment_date',
+      cols:[['payment_date','Payment date','date'],['amount_paid','Amount','money'],['cc_type','CC type'],
+            ['booking_source','Source'],['room','Room'],['guest_name','Guest','strong'],
+            ['checkin','Check-in','date'],['checkout','Check-out','date']] },
+
+    { n:3, slug:'arrivals', group:'Reservations & Guest Services (Amy)', ready:false, needs:'guests sync',
+      title:'Arrivals (all guests)',
+      desc:'Every guest on the reservation (not just the booker) with phone and email — who is in each villa.',
+      view:'rpt_arrivals', order:'checkin.asc',
+      cols:[['checkin','Check-in','date'],['checkout','Check-out','date'],['room_type_id','Villa'],
+            ['first_name','First'],['last_name','Last'],['email','Email'],['phone','Phone'],['is_primary','Booker','bool']] },
+
+    { n:4, slug:'balance-due', group:'Reservations & Guest Services (Amy)', ready:true,
+      title:'Balance Due',
+      desc:'Guests who still owe a final balance, with contact info to follow up. (Contact fills in once the guests sync runs.)',
+      view:'rpt_balance_due', order:'checkin.asc',
+      cols:[['guest_name','Guest','strong'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
+            ['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
+
+    { n:5, slug:'holds', group:'Reservations & Guest Services (Amy)', ready:true,
+      title:'Holds / Confirmation Pending',
+      desc:'Unconfirmed holds to follow up or cancel, with contact info. (Contact fills in once the guests sync runs.)',
+      view:'rpt_holds', order:'booking_datetime.desc',
+      cols:[['guest_name','Guest','strong'],['email','Email'],['phone','Phone'],
+            ['checkin','Check-in','date'],['checkout','Check-out','date'],['booking_datetime','Booked','date']] },
+
+    { n:6, slug:'deposit-gaps', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions sync',
+      title:'Reservation → Deposit Reconciliation',
+      desc:'Confirmed reservations with no deposit posted — flags gaps to chase.',
+      view:'rpt_deposit_gaps', order:'booking_datetime.desc',
+      cols:[['guest_name','Guest','strong'],['status','Status'],['booking_datetime','Booked','date'],['paid_to_date','Paid to date','money']] },
+
+    { n:7, slug:'recon-cb-authnet', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions + Auth.net sync',
+      title:'CB vs Authorize.net Reconciliation',
+      desc:'Payments that appear on only one side (Cloudbeds or Authorize.net) — surfaces true mismatches.',
+      view:'rpt_recon_cb_vs_authnet', order:'ts.desc',
+      cols:[['side','Side'],['transaction_id','Txn ID'],['amount','Amount','money'],['card_last4','Card'],['auth_code','Auth code'],['ts','When','date']] },
+
+    { n:8, slug:'occupancy', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rooms + room-blocks sync',
+      title:'Accurate Occupancy',
+      desc:'Occupancy that nets out offline / maintenance villas so the % reflects sellable inventory.',
+      view:'rpt_occupancy', order:'night.asc',
+      cols:[['night','Night','date'],['total_villas','Total'],['sellable_villas','Sellable'],['occupied_villas','Occupied'],['occupancy_pct','Occupancy %']] },
+
+    { n:9, slug:'source-of-business', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions sync',
+      title:'Source of Business',
+      desc:'Reservations, room-nights and revenue grouped by booking source / marketing code.',
+      view:'rpt_source_of_business', order:'revenue.desc',
+      cols:[['source_category','Category'],['source','Source'],['reservations','Res'],['room_nights','Room nights'],['revenue','Revenue','money']] },
+
+    { n:10, slug:'rate-discounting', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rate-plans sync + baseline',
+      title:'Rate Discounting',
+      desc:'Actual ADR per reservation vs a reference rate (baseline still to be defined).',
+      view:'rpt_rate_discounting', order:'checkin.desc',
+      cols:[['guest_name','Guest','strong'],['villa','Villa'],['rate_plan','Rate plan'],['nights','Nights'],
+            ['total','Total','money'],['adr','ADR','money'],['discount_pct','Discount %']] },
+
+    { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:false, needs:'transactions + room-types sync',
+      title:'Revenue by Room Type',
+      desc:'Daily payment revenue broken out by villa / room type.',
+      view:'rpt_revenue_by_room_type', order:'day.desc',
+      cols:[['villa','Villa'],['day','Day','date'],['revenue','Revenue','money']] },
+
+    { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:false, needs:'transactions sync',
+      title:'Payment Processing',
+      desc:'Daily payment counts and totals by method (use with a trailing-7-day view).',
+      view:'rpt_payment_processing', order:'day.desc',
+      cols:[['day','Day','date'],['payment_method','Method'],['txn_count','Count'],['total','Total','money']] },
+  ];
+
+  function tryGate(){
+    const v=document.getElementById('code').value.trim();
+    if(v===ACCESS_CODE){ document.getElementById('gate').style.display='none'; route(); }
+    else document.getElementById('gateErr').textContent='Incorrect code';
+  }
+  document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')tryGate();});
+
+  window.addEventListener('hashchange', route);
+  function route(){
+    if(document.getElementById('gate').style.display!=='none') return;
+    const slug=(location.hash||'#/').replace(/^#\//,'').replace(/^#/,'');
+    const rep=REPORTS.find(r=>r.slug===slug);
+    document.getElementById('status').textContent='';
+    if(rep) renderReport(rep); else renderHub();
+  }
+
+  function renderHub(){
+    document.getElementById('hTitle').textContent='White Bay Villas — Reports';
+    document.getElementById('hSub').textContent=REPORTS.filter(r=>r.ready).length+' of '+REPORTS.length+' live';
+    const groups=[...new Set(REPORTS.map(r=>r.group))];
+    let html='';
+    for(const g of groups){
+      html+='<div class="grp">'+esc(g)+'</div><div class="cards">';
+      for(const r of REPORTS.filter(x=>x.group===g)){
+        html+='<a class="card" href="#/'+r.slug+'">'
+            +'<div class="num">Report '+r.n+'</div><h3>'+esc(r.title)+'</h3>'
+            +'<p>'+esc(r.desc)+'</p>'
+            +(r.ready?'<span class="badge b-live">● Live</span>'
+                     :'<span class="badge b-soon">Waiting on '+esc(r.needs||'data')+'</span>')
+            +'</a>';
+      }
+      html+='</div>';
+    }
+    document.getElementById('app').innerHTML=html;
+  }
+
+  async function renderReport(r){
+    document.getElementById('hTitle').textContent=r.title;
+    document.getElementById('hSub').textContent=r.group;
+    let head='<div class="crumbs"><a href="#/">All reports</a> › '+esc(r.title)+'</div>';
+    if(!r.ready){
+      document.getElementById('app').innerHTML=head+'<div class="soon-box"><strong>Not live yet.</strong><br>'
+        +'This report is built and waiting on the <b>'+esc(r.needs||'data')+'</b>. '
+        +'It will populate automatically once that data is flowing.</div>';
+      return;
+    }
+    let toolbar='<div class="toolbar"><div class="row-actions">';
+    if(r.dateField){
+      toolbar+='From <input type="date" id="from"> To <input type="date" id="to"> '
+             +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button>';
+    }
+    toolbar+='</div><button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
+    document.getElementById('app').innerHTML=head+toolbar+'<div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
+    loadReport(r.slug);
+  }
+
+  async function loadReport(slug){
+    const r=REPORTS.find(x=>x.slug===slug);
+    const st=document.getElementById('status'); st.textContent='Loading…';
+    let url=`${SUPABASE_URL}/rest/v1/${r.view}?select=*&order=${r.order}`;
+    if(r.dateField){
+      const f=document.getElementById('from')?.value, t=document.getElementById('to')?.value;
+      if(f) url+=`&${r.dateField}=gte.${f}`;
+      if(t) url+=`&${r.dateField}=lte.${t}T23:59:59`;
+    }
+    try{
+      const res=await fetch(url,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}});
+      if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
+      const rows=await res.json();
+      let h='<table><thead><tr>'+r.cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr></thead><tbody>';
+      if(!rows.length) h+='<tr><td colspan="'+r.cols.length+'" class="muted">No rows.</td></tr>';
+      else h+=rows.map(row=>'<tr>'+r.cols.map(c=>'<td>'+cell(row[c[0]],c[2])+'</td>').join('')+'</tr>').join('');
+      h+='</tbody></table>';
+      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=h;
+      st.textContent=rows.length+' rows · updated '+new Date().toLocaleTimeString();
+    }catch(e){
+      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML='<p style="color:var(--red)">Could not load: '+esc(e.message||e)+'</p>';
+      st.textContent='Error';
+    }
+  }
+</script>
+</body>
+</html>
