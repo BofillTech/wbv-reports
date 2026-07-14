@@ -267,4 +267,15 @@
       const rows=await res.json();
       let h='<table><thead><tr>'+r.cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr></thead><tbody>';
       if(!rows.length) h+='<tr><td colspan="'+r.cols.length+'" class="muted">No rows.</td></tr>';
-      else h+=rows.map(row=>'<tr
+      else h+=rows.map(row=>'<tr>'+r.cols.map(c=>'<td>'+cell(row[c[0]],c[2])+'</td>').join('')+'</tr>').join('');
+      h+='</tbody></table>';
+      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=h;
+      st.textContent=rows.length+' rows · updated '+new Date().toLocaleTimeString();
+    }catch(e){
+      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML='<p style="color:var(--red)">Could not load: '+esc(e.message||e)+'</p>';
+      st.textContent='Error';
+    }
+  }
+</script>
+</body>
+</html>
