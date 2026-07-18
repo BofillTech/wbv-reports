@@ -91,7 +91,7 @@
   const ACCESS_CODE = "wbv2026";
 
   const money = n => (n==null||n==='' ? '—' : '$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
-  const dfmt  = s => s ? new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}) : '—';
+  const dfmt  = s => { if(!s) return '—'; const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); const d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(s); return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); };
   const cell  = (v,t)=>{
     if(v==null||v==='') return '<span class="muted">—</span>';
     if(t==='money') return '<span class="money">'+money(v)+'</span>';
@@ -101,7 +101,7 @@
     if(t==='days'){ const d=Number(v)||0; const cls=d>=14?'days-hot':d>=7?'days-warm':'days-ok'; return '<span class="pill '+cls+'">'+d+'</span>'; }
     return esc(v);
   };
-  const esc = s => String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const esc = s => String(s).replace(/&amp;/g,'&').replace(/&#0?39;/g,"'").replace(/&quot;/g,'"').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 
   // Report definitions. ready=true → data is flowing; false → waiting on a sync.
   const REPORTS = [
