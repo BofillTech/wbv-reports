@@ -142,6 +142,13 @@
       cols:[['guest_name','Guest','strong'],['days_pending','Days pending','days'],['booking_datetime','Created','date'],
             ['checkin','Check-in','date'],['checkout','Check-out','date'],['email','Email'],['phone','Phone']] },
 
+    { n:13, slug:'in-house', group:'Reservations & Guest Services (Amy)', ready:true,
+      title:'Guests In House',
+      desc:'Guests currently staying — cell phone to call them, when they arrived, and days until check-out.',
+      view:'rpt_in_house', order:'days_to_checkout.asc', dateField:'arrived', dateLabel:'arrival date',
+      cols:[['guest_name','Guest','strong'],['phone','Phone'],['arrived','Arrived','date'],
+            ['days_to_checkout','Days to check-out'],['checkout','Check-out','date'],['nights_so_far','Nights so far'],['balance','Balance','money']] },
+
     { n:6, slug:'deposit-gaps', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions sync',
       title:'Reservation → Deposit Reconciliation',
       desc:'Confirmed reservations with no deposit posted — flags gaps to chase.',
