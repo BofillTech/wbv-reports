@@ -113,7 +113,7 @@
             ['checkout','Check-out','date'],['amount_paid','Paid','money'],['balance_due','Balance','money'],
             ['last_payment_date','Date paid','date'],['date_of_booking','Booked','date'],['status','Status']] },
 
-    { n:2, slug:'financial-revenue', group:'Accounting (Christa)', ready:false, needs:'transactions sync',
+    { n:2, slug:'financial-revenue', group:'Accounting (Christa)', ready:true,
       title:'Financial / Revenue',
       desc:'Every payment — date, amount, CC type, source, room, guest, stay dates. Custom date range at run time.',
       view:'rpt_financial_transactions', order:'payment_date.desc', dateField:'payment_date', dateTS:true, dateLabel:'payment date',
@@ -149,7 +149,7 @@
       cols:[['guest_name','Guest','strong'],['phone','Phone'],['arrived','Arrived','date'],
             ['days_to_checkout','Days to check-out'],['checkout','Check-out','date'],['nights_so_far','Nights so far'],['balance','Balance','money']] },
 
-    { n:6, slug:'deposit-gaps', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions sync',
+    { n:6, slug:'deposit-gaps', group:'Reconciliation & Ops (Ken)', ready:true,
       title:'Reservation → Deposit Reconciliation',
       desc:'Confirmed reservations with no deposit posted — flags gaps to chase.',
       view:'rpt_deposit_gaps', order:'booking_datetime.desc', dateField:'booking_datetime', dateTS:true, dateLabel:'booking date',
@@ -167,7 +167,7 @@
       view:'rpt_occupancy', order:'night.asc', dateField:'night', dateLabel:'night',
       cols:[['night','Night','date'],['total_villas','Total'],['sellable_villas','Sellable'],['occupied_villas','Occupied'],['occupancy_pct','Occupancy %']] },
 
-    { n:9, slug:'source-of-business', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions sync',
+    { n:9, slug:'source-of-business', group:'Reconciliation & Ops (Ken)', ready:true,
       title:'Source of Business',
       desc:'Reservations, room-nights and revenue grouped by booking source / marketing code.',
       view:'rpt_source_of_business', order:'revenue.desc',
@@ -180,13 +180,13 @@
       cols:[['guest_name','Guest','strong'],['villa','Villa'],['rate_plan','Rate plan'],['nights','Nights'],
             ['total','Total','money'],['adr','ADR','money'],['discount_pct','Discount %']] },
 
-    { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:false, needs:'transactions + room-types sync',
+    { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:false, needs:'room-types sync',
       title:'Revenue by Room Type',
       desc:'Daily payment revenue broken out by villa / room type.',
       view:'rpt_revenue_by_room_type', order:'day.desc', dateField:'day', dateLabel:'day',
       cols:[['villa','Villa'],['day','Day','date'],['revenue','Revenue','money']] },
 
-    { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:false, needs:'transactions sync',
+    { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:true,
       title:'Payment Processing',
       desc:'Daily payment counts and totals by method (use with a trailing-7-day view).',
       view:'rpt_payment_processing', order:'day.desc', dateField:'day', dateLabel:'day',
