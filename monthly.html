@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>White Bay Villas — Monthly Executive Report</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{--bg:#0f1720;--panel:#16212e;--line:#22303f;--txt:#e7eef6;--muted:#8aa0b4;
+    --accent:#38bdf8;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--orange:#fb923c;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:14.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  header{padding:18px 26px;border-bottom:1px solid var(--line);display:flex;
+    align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+  header h1{font-size:18px;margin:0;font-weight:650}
+  header .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .wrap{padding:20px 26px;max-width:1250px;margin:0 auto}
+  select,button{background:#0e1620;color:var(--txt);border:1px solid var(--line);
+    border-radius:8px;padding:7px 11px;font-size:14px}
+  button{background:var(--accent);color:#04121c;border:0;font-weight:640;cursor:pointer}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .grp{margin:28px 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
+    border-bottom:1px solid var(--line);padding-bottom:6px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .l{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+  .kpi .n{font-size:23px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi .d{font-size:12px;margin-top:3px}
+  .up{color:var(--green)} .down{color:var(--red)}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media(max-width:900px){.row{grid-template-columns:1fr}}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .box h3{margin:0 0 12px;font-size:14px;font-weight:640}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}
+  tr:last-child td{border-bottom:none}
+  tfoot td{font-weight:700;border-top:2px solid var(--line)}
+  .money{font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  canvas{max-height:280px}
+  .note{color:var(--muted);font-size:12.5px;margin-top:10px;font-style:italic}
+  .gate{position:fixed;inset:0;background:#0b1219;display:flex;align-items:center;justify-content:center;z-index:50}
+  .gate .box{width:330px;text-align:center}
+  .gate input{width:100%;padding:11px;margin:14px 0;border-radius:9px;border:1px solid var(--line);
+    background:#0e1620;color:var(--txt);font-size:15px;text-align:center}
+  .err{color:var(--red);font-size:13px;min-height:18px}
+</style>
+</head>
+<body>
+  <div class="gate" id="gate">
+    <div class="box">
+      <div style="font-weight:650;font-size:16px">White Bay Villas</div>
+      <div class="muted" style="font-size:13px;margin-top:4px">Monthly Executive Report</div>
+      <input id="code" type="password" placeholder="Access code" autofocus />
+      <div class="err" id="gateErr"></div>
+      <button onclick="tryGate()" style="width:100%">Enter</button>
+    </div>
+  </div>
+
+  <header>
+    <div>
+      <h1>Monthly Executive Report</h1>
+      <div class="sub" id="sub">New booking sales, revenue &amp; occupancy — from Cloudbeds</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <a class="btn ghost" href="index.html">All reports</a>
+      <select id="monthSel" onchange="render()"></select>
+      <span id="status" class="muted" style="font-size:12px"></span>
+    </div>
+  </header>
+
+  <div class="wrap" id="app"><p class="muted">Enter the access code to load…</p></div>
+
+<script>
+  const SUPABASE_URL="https://oyxyhxuzufidxfdcwszo.supabase.co";
+  const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ";
+  const ACCESS_CODE="wbv2026";
+  const H={apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'};
+  let DATA={};
+  const CHARTS=[];
+
+  const money=n=>(n==null||n===''?'—':'$'+Math.round(Number(n)).toLocaleString());
+  const money2=n=>(n==null||n===''?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
+  const pct=n=>(n==null?'—':Number(n).toFixed(1)+'%');
+  const num=n=>(n==null?'—':Number(n).toLocaleString());
+  const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mKey=s=>String(s).slice(0,7);                 // 'YYYY-MM'
+  const mLabel=s=>{const [y,m]=mKey(s).split('-');return MON[+m-1]+' '+y;};
+  const chg=(cur,prev)=>{ if(prev==null||prev==0) return ''; const p=(cur-prev)/Math.abs(prev)*100;
+    const cls=p>=0?'up':'down'; return `<span class="${cls}">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(0)}%</span>`; };
+
+  function tryGate(){
+    if(document.getElementById('code').value.trim()===ACCESS_CODE){
+      document.getElementById('gate').style.display='none'; boot();
+    } else document.getElementById('gateErr').textContent='Incorrect code';
+  }
+  document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')tryGate();});
+
+  async function get(view){
+    const r=await fetch(`${SUPABASE_URL}/rest/v1/${view}?select=*&order=month.asc`,{headers:H});
+    if(!r.ok) throw new Error(view+': HTTP '+r.status);
+    return r.json();
+  }
+
+  async function boot(){
+    const st=document.getElementById('status'); st.textContent='Loading…';
+    try{
+      const [sales,source,villa,occ,cash,cc]=await Promise.all([
+        get('v_mr_sales_by_month'),get('v_mr_source_by_month'),get('v_mr_villa_by_month'),
+        get('v_mr_occupancy_by_month'),get('v_mr_cash_expected'),get('v_mr_cc_by_month')]);
+      DATA={sales,source,villa,occ,cash,cc};
+      const sel=document.getElementById('monthSel');
+      const months=[...new Set(sales.map(r=>mKey(r.month)))].sort().reverse();
+      sel.innerHTML=months.map(m=>`<option value="${m}">${mLabel(m)}</option>`).join('');
+      st.textContent='Updated '+new Date().toLocaleTimeString();
+      render();
+    }catch(e){
+      st.textContent='Error';
+      document.getElementById('app').innerHTML='<p style="color:var(--red)">Could not load: '+String(e.message||e)+'</p>';
+    }
+  }
+
+  function destroyCharts(){ while(CHARTS.length){ try{CHARTS.pop().destroy();}catch(e){} } }
+  const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'};
+  function chart(id,cfg){ const el=document.getElementById(id); if(!el) return;
+    cfg.options=cfg.options||{}; cfg.options.responsive=true; cfg.options.maintainAspectRatio=false;
+    cfg.options.plugins=Object.assign({legend:{labels:{color:'#e7eef6'}}},cfg.options.plugins||{});
+    cfg.options.scales=cfg.options.scales||{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:TICK}};
+    CHARTS.push(new Chart(el,cfg)); }
+
+  function render(){
+    destroyCharts();
+    const sel=document.getElementById('monthSel').value;      // 'YYYY-MM'
+    const [Y,M]=sel.split('-').map(Number);
+    const S=DATA.sales, byKey=Object.fromEntries(S.map(r=>[mKey(r.month),r]));
+    const cur=byKey[sel]||{bookings:0,revenue:0,nights:0,avg_nights:0,avg_per_night:0};
+    const prevM=new Date(Y,M-2,1), prevKey=prevM.getFullYear()+'-'+String(prevM.getMonth()+1).padStart(2,'0');
+    const yoyKey=(Y-1)+'-'+String(M).padStart(2,'0');
+    const prev=byKey[prevKey], yoy=byKey[yoyKey];
+    // YTD (Jan..selected of year Y)
+    const ytd=S.filter(r=>{const k=mKey(r.month);return k.startsWith(Y+'-')&&k<=sel;});
+    const ytdRev=ytd.reduce((a,r)=>a+Number(r.revenue||0),0);
+    const ytdPrior=S.filter(r=>{const k=mKey(r.month);return k.startsWith((Y-1)+'-')&&k<=yoyKey;})
+                    .reduce((a,r)=>a+Number(r.revenue||0),0);
+
+    let h='';
+    // ---- KPI cards ----
+    h+=`<div class="grp">${mLabel(sel)} — New Booking Sales</div><div class="cards">
+      ${kpi('New bookings',num(cur.bookings),prev&&chg(cur.bookings,prev.bookings))}
+      ${kpi('Revenue (all-in)',money(cur.revenue),(prev?chg(cur.revenue,prev.revenue)+' MoM ':'')+(yoy?chg(cur.revenue,yoy.revenue)+' YoY':''))}
+      ${kpi('Nights sold',num(cur.nights),'')}
+      ${kpi('Avg nights',cur.avg_nights??'—','')}
+      ${kpi('Avg $/night',money(cur.avg_per_night),'')}
+      ${kpi('YTD revenue',money(ytdRev),ytdPrior?chg(ytdRev,ytdPrior)+' vs prior YTD':'')}
+    </div>`;
+
+    // ---- Source of Business ----
+    const src=DATA.source.filter(r=>mKey(r.month)===sel).sort((a,b)=>b.revenue-a.revenue);
+    const srcTot=src.reduce((a,r)=>a+Number(r.revenue||0),0);
+    h+=`<div class="grp">Source of Business</div><div class="row">
+      <div class="box"><h3>By source — ${mLabel(sel)}</h3><table><thead><tr>
+        <th>Source</th><th>Bookings</th><th>%</th><th>Revenue</th><th>Nights</th></tr></thead><tbody>
+        ${src.map(r=>`<tr><td>${esc(r.source_bucket)}</td><td>${num(r.bookings)}</td>
+          <td>${srcTot?((r.revenue/srcTot*100).toFixed(0)+'%'):'—'}</td><td class="money">${money(r.revenue)}</td>
+          <td>${num(r.nights)}</td></tr>`).join('')||'<tr><td colspan=5 class=muted>No data</td></tr>'}
+      </tbody><tfoot><tr><td>Total</td><td>${num(src.reduce((a,r)=>a+r.bookings,0))}</td><td>100%</td>
+        <td class="money">${money(srcTot)}</td><td>${num(src.reduce((a,r)=>a+r.nights,0))}</td></tr></tfoot></table></div>
+      <div class="box"><h3>Revenue by source</h3><canvas id="cSrc"></canvas></div>
+    </div>`;
+
+    // ---- Sales by Villa ----
+    const vil=DATA.villa.filter(r=>mKey(r.month)===sel).sort((a,b)=>b.revenue-a.revenue);
+    h+=`<div class="grp">Sales by Villa</div><div class="row">
+      <div class="box"><h3>By villa — ${mLabel(sel)}</h3><table><thead><tr>
+        <th>Villa</th><th>Bookings</th><th>Revenue</th><th>Nights</th><th>Avg $/night</th></tr></thead><tbody>
+        ${vil.map(r=>`<tr><td>${esc(r.villa)}</td><td>${num(r.bookings)}</td><td class="money">${money(r.revenue)}</td>
+          <td>${num(r.nights)}</td><td class="money">${money(r.avg_per_night)}</td></tr>`).join('')
+          ||'<tr><td colspan=5 class=muted>No data</td></tr>'}
+      </tbody></table></div>
+      <div class="box"><h3>Revenue by villa</h3><canvas id="cVilla"></canvas></div>
+    </div>`;
+
+    // ---- Trends: YoY same-month, trailing-12, quarterly ----
+    h+=`<div class="grp">Sales Trends</div>
+      <div class="row">
+        <div class="box"><h3>${MON[M-1]} sales — year over year</h3><canvas id="cYoy"></canvas></div>
+        <div class="box"><h3>Trailing 12 months (sum of last 12)</h3><canvas id="cT12"></canvas></div>
+      </div>
+      <div class="row" style="margin-top:18px">
+        <div class="box"><h3>New sales by quarter</h3><canvas id="cQtr"></canvas></div>
+        <div class="box"><h3>Credit-card collected vs new-sales revenue</h3><canvas id="cCC"></canvas></div>
+      </div>`;
+
+    // ---- Occupancy ----
+    const occCur=DATA.occ.filter(r=>mKey(r.month)===sel).sort((a,b)=>a.villa.localeCompare(b.villa));
+    const uSum=occCur.reduce((a,r)=>a+Number(r.units||0),0),
+          aSum=occCur.reduce((a,r)=>a+Number(r.avail_nights||0),0),
+          oSum=occCur.reduce((a,r)=>a+Number(r.occupied_nights||0),0);
+    h+=`<div class="grp">Occupancy</div><div class="row">
+      <div class="box"><h3>Occupancy — ${mLabel(sel)}</h3><table><thead><tr>
+        <th>Villa</th><th>Units</th><th>Avail nights</th><th>Occupied</th><th>Occupancy</th></tr></thead><tbody>
+        ${occCur.map(r=>`<tr><td>${esc(r.villa)}</td><td>${num(r.units)}</td><td>${num(r.avail_nights)}</td>
+          <td>${num(r.occupied_nights)}</td><td>${pct(r.occupancy_pct)}</td></tr>`).join('')
+          ||'<tr><td colspan=5 class=muted>No data — run the reference sync</td></tr>'}
+      </tbody><tfoot><tr><td>All villas</td><td>${num(uSum)}</td><td>${num(aSum)}</td><td>${num(oSum)}</td>
+        <td>${aSum?((oSum/aSum*100).toFixed(1)+'%'):'—'}</td></tr></tfoot></table></div>
+      <div class="box"><h3>Occupancy trend by villa</h3><canvas id="cOcc"></canvas></div>
+    </div>`;
+
+    // ---- Cash expected + CC ----
+    const cashF=DATA.cash.filter(r=>mKey(r.month)>=sel).sort((a,b)=>a.month<b.month?-1:1);
+    const ccCur=DATA.cc.find(r=>mKey(r.month)===sel);
+    h+=`<div class="grp">Cash &amp; Collections</div><div class="row">
+      <div class="box"><h3>Cash expected (balances due + OTA)</h3><table><thead><tr>
+        <th>Month</th><th>Balances due</th><th>OTA</th><th>Total</th></tr></thead><tbody>
+        ${cashF.map(r=>`<tr><td>${mLabel(r.month)}</td><td class="money">${money(r.balances_due)}</td>
+          <td class="money">${money(r.ota)}</td><td class="money">${money(Number(r.balances_due)+Number(r.ota))}</td></tr>`).join('')
+          ||'<tr><td colspan=4 class=muted>No outstanding balances</td></tr>'}
+      </tbody><tfoot><tr><td>Total</td>
+        <td class="money">${money(cashF.reduce((a,r)=>a+Number(r.balances_due||0),0))}</td>
+        <td class="money">${money(cashF.reduce((a,r)=>a+Number(r.ota||0),0))}</td>
+        <td class="money">${money(cashF.reduce((a,r)=>a+Number(r.balances_due||0)+Number(r.ota||0),0))}</td></tr></tfoot></table></div>
+      <div class="box"><h3>Credit cards collected — ${mLabel(sel)}</h3>
+        <div class="kpi" style="border:0;padding:0"><div class="n money">${money(ccCur?ccCur.cc_collected:0)}</div>
+        <div class="d muted">${ccCur?num(ccCur.payments)+' payments':'—'}</div></div>
+        <div class="note">Note: our warehouse currently holds a recent window of Cloudbeds transactions, so
+        month totals may not tie exactly to Ken's manually-reconciled figures until full transaction history is loaded.</div>
+      </div>
+    </div>`;
+
+    document.getElementById('app').innerHTML=h;
+
+    // ===== charts =====
+    const c1=v=>v.map((_,i)=>`hsl(${200+i*28},70%,55%)`);
+    chart('cSrc',{type:'bar',data:{labels:src.map(r=>r.source_bucket),
+      datasets:[{label:'Revenue',data:src.map(r=>r.revenue),backgroundColor:c1(src)}]},
+      options:{plugins:{legend:{display:false}}}});
+    chart('cVilla',{type:'bar',data:{labels:vil.map(r=>r.villa),
+      datasets:[{label:'Revenue',data:vil.map(r=>r.revenue),backgroundColor:c1(vil)}]},
+      options:{plugins:{legend:{display:false}}}});
+
+    // YoY same-month across years
+    const yoyYears=[...new Set(S.map(r=>mKey(r.month).split('-')[0]))].sort();
+    const yoyData=yoyYears.map(y=>{const rr=byKey[y+'-'+String(M).padStart(2,'0')];return rr?Number(rr.revenue):null;});
+    chart('cYoy',{type:'bar',data:{labels:yoyYears,datasets:[{label:MON[M-1]+' revenue',data:yoyData,
+      backgroundColor:yoyYears.map((y,i)=>y==Y?'#38bdf8':'#2a3d50')}]},options:{plugins:{legend:{display:false}}}});
+
+    // trailing 12
+    const allM=S.map(r=>mKey(r.month)).sort();
+    const revByKey=Object.fromEntries(S.map(r=>[mKey(r.month),Number(r.revenue||0)]));
+    const t12=allM.map(k=>{const [yy,mm]=k.split('-').map(Number);let s=0;
+      for(let i=0;i<12;i++){const d=new Date(yy,mm-1-i,1);const kk=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');s+=revByKey[kk]||0;}
+      return s;});
+    chart('cT12',{type:'line',data:{labels:allM.map(mLabel),datasets:[{label:'Trailing 12mo sales',data:t12,
+      borderColor:'#22c55e',backgroundColor:'rgba(34,197,94,.12)',fill:true,tension:.3,pointRadius:2}]},
+      options:{plugins:{legend:{display:false}}}});
+
+    // quarterly
+    const qmap={};
+    S.forEach(r=>{const [yy,mm]=mKey(r.month).split('-').map(Number);const q='Q'+(Math.floor((mm-1)/3)+1);
+      const key=yy+' '+q; qmap[key]=(qmap[key]||0)+Number(r.revenue||0);});
+    const qkeys=Object.keys(qmap).sort();
+    chart('cQtr',{type:'bar',data:{labels:qkeys,datasets:[{label:'New sales',data:qkeys.map(k=>qmap[k]),
+      backgroundColor:'#38bdf8'}]},options:{plugins:{legend:{display:false}}}});
+
+    // CC collected vs sales revenue
+    const ccByKey=Object.fromEntries(DATA.cc.map(r=>[mKey(r.month),Number(r.cc_collected||0)]));
+    const ccMonths=allM.filter(k=>k in ccByKey);
+    chart('cCC',{type:'line',data:{labels:ccMonths.map(mLabel),datasets:[
+      {label:'CC collected',data:ccMonths.map(k=>ccByKey[k]||0),borderColor:'#38bdf8',tension:.3,pointRadius:2},
+      {label:'New-sales revenue',data:ccMonths.map(k=>revByKey[k]||0),borderColor:'#fb923c',tension:.3,pointRadius:2}]}});
+
+    // occupancy trend by villa (last 24 months)
+    const occMonths=[...new Set(DATA.occ.map(r=>mKey(r.month)))].sort();
+    const villas=[...new Set(DATA.occ.map(r=>r.villa))].sort();
+    const occLookup={}; DATA.occ.forEach(r=>{occLookup[mKey(r.month)+'|'+r.villa]=Number(r.occupancy_pct);});
+    chart('cOcc',{type:'line',data:{labels:occMonths.map(mLabel),
+      datasets:villas.map((v,i)=>({label:v,data:occMonths.map(k=>occLookup[k+'|'+v]??null),
+        borderColor:`hsl(${200+i*40},70%,58%)`,tension:.3,pointRadius:1,spanGaps:true}))},
+      options:{scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#8aa0b4',callback:v=>v+'%'}}}}});
+  }
+
+  function kpi(label,n,d){return `<div class="kpi"><div class="l">${label}</div><div class="n">${n}</div><div class="d">${d||''}</div></div>`;}
+  const esc=s=>String(s==null?'':s).replace(/&amp;/g,'&').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+</script>
+</body>
+</html>
