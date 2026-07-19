@@ -191,6 +191,10 @@
       desc:'Daily payment counts and totals by method (use with a trailing-7-day view).',
       view:'rpt_payment_processing', order:'day.desc', dateField:'day', dateLabel:'day',
       cols:[['day','Day','date'],['payment_method','Method'],['txn_count','Count'],['total','Total','money']] },
+
+    { n:14, slug:'monthly-report', page:'monthly.html', group:'Executive Summary (Ken)', ready:true,
+      title:'Monthly Executive Report',
+      desc:'Ken’s monthly report — new-booking sales, revenue & occupancy, with YoY, trailing-12-month, quarterly and occupancy charts. Pick any month.' },
   ];
 
   // ---- Gate ---------------------------------------------------------------
@@ -219,7 +223,7 @@
     for(const g of groups){
       html+='<div class="grp">'+esc(g)+'</div><div class="cards">';
       for(const r of REPORTS.filter(x=>x.group===g)){
-        html+='<a class="card" href="#/'+r.slug+'">'
+        html+='<a class="card" href="'+(r.page?r.page:'#/'+r.slug)+'">'
             +'<div class="num">Report '+r.n+'</div><h3>'+esc(r.title)+'</h3>'
             +'<p>'+esc(r.desc)+'</p>'
             +(r.ready?'<span class="badge b-live">● Live</span>'
