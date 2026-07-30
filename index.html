@@ -191,8 +191,10 @@
       desc:'Booking revenue by villa type, by month (from confirmed booking value).',
       view:'rpt_revenue_by_room_type', order:'month.desc', dateField:'month', dateGran:'month', dateLabel:'month',
       charts:[
-        {type:'bar',  title:'Revenue by villa type (visible period)', groupBy:'villa', agg:'revenue'},
-        {type:'line', title:'Revenue by month', groupBy:'month', agg:'revenue', sortKey:true, dateKey:true}
+        {type:'bar',  title:'Revenue by villa type', groupBy:'villa', agg:'revenue', fmt:'money'},
+        {type:'bar',  title:'Bookings by villa type', groupBy:'villa', agg:'bookings', fmt:'num'},
+        {type:'bar',  title:'Occupancy by villa type', source:'v_mr_occupancy_by_month', dateField:'month', groupBy:'villa', aggNum:'occupied_nights', aggDen:'avail_nights', fmt:'pct'},
+        {type:'line', title:'Revenue by month', groupBy:'month', agg:'revenue', sortKey:true, dateKey:true, fmt:'money'}
       ],
       cols:[['villa','Villa type'],['month','Month','date'],['bookings','Bookings','num'],['revenue','Revenue','money'],['nights','Nights','num'],['avg_per_night','Avg $/night','money']] },
 
@@ -323,33 +325,51 @@
   }
 
   // ---- Charts (optional, per report) --------------------------------------
+  // Chart config: {type, title, groupBy, agg | (aggNum & aggDen for a ratio),
+  //   fmt:'money'|'num'|'pct', source (optional other view), dateField, sortKey, dateKey}
   let CHARTINST=[];
-  function drawCharts(r,rows){
+  async function drawCharts(r,rows){
     const host=document.getElementById('charts');
     CHARTINST.forEach(c=>{try{c.destroy();}catch(e){}}); CHARTINST=[];
     if(!host) return;
-    if(!r.charts||!r.charts.length||!rows.length){ host.innerHTML=''; return; }
+    if(!r.charts||!r.charts.length){ host.innerHTML=''; return; }
     host.innerHTML='<div class="charts-row">'+r.charts.map((c,i)=>
       '<div class="chart-card"><h3>'+esc(c.title)+'</h3><div class="cbox"><canvas id="ch'+i+'"></canvas></div></div>').join('')+'</div>';
     const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'};
-    r.charts.forEach((c,i)=>{
-      const map={};
-      for(const row of rows){ const k=row[c.groupBy]; if(k==null||k==='') continue; map[k]=(map[k]||0)+Number(row[c.agg]||0); }
-      let keys=Object.keys(map);
-      if(c.sortKey) keys.sort(); else keys.sort((a,b)=>map[b]-map[a]);
+    const fv=document.getElementById('from')?.value, tv=document.getElementById('to')?.value;
+    for(let i=0;i<r.charts.length;i++){
+      const c=r.charts[i];
+      let data=rows;
+      if(c.source){
+        const df=c.dateField||'month';
+        let u=`${SUPABASE_URL}/rest/v1/${c.source}?select=*`;
+        if(fv) u+=`&${df}=gte.${fv}-01`;
+        if(tv) u+=`&${df}=lte.${tv}-01`;
+        try{ const res=await fetch(u,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}}); data=res.ok?await res.json():[]; }catch(e){ data=[]; }
+      }
+      const num={}, den={};
+      for(const row of data){ const k=row[c.groupBy]; if(k==null||k==='') continue;
+        if(c.aggNum){ num[k]=(num[k]||0)+Number(row[c.aggNum]||0); den[k]=(den[k]||0)+Number(row[c.aggDen]||0); }
+        else { num[k]=(num[k]||0)+Number(row[c.agg]||0); }
+      }
+      const val=k=>c.aggNum?(den[k]?100*num[k]/den[k]:0):num[k];
+      let keys=Object.keys(num);
+      if(c.sortKey) keys.sort(); else keys.sort((a,b)=>val(b)-val(a));
       const labels=keys.map(k=>c.dateKey?dfmt(k):k);
-      const data=keys.map(k=>Math.round(map[k]));
+      const vals=keys.map(k=>Math.round(val(k)*10)/10);
       const colors=keys.map((_,j)=>`hsl(${200+j*34},70%,55%)`);
       const isLine=c.type==='line';
-      const el=document.getElementById('ch'+i); if(!el) return;
+      const fmt=c.fmt||'money';
+      const fmtV=v=>fmt==='money'?'$'+Number(v).toLocaleString():fmt==='pct'?Number(v)+'%':Number(v).toLocaleString();
+      const el=document.getElementById('ch'+i); if(!el) continue;
       CHARTINST.push(new Chart(el,{ type:c.type,
-        data:{ labels, datasets:[{ label:c.title, data,
+        data:{ labels, datasets:[{ label:c.title, data:vals,
           backgroundColor:isLine?'rgba(56,189,248,.15)':colors,
           borderColor:isLine?'#38bdf8':colors, fill:isLine, tension:.3, pointRadius:2 }] },
         options:{ responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>'$'+Number(ctx.parsed.y).toLocaleString()}} },
-          scales:{ x:{grid:GRID,ticks:TICK}, y:{grid:GRID,ticks:{color:'#8aa0b4',callback:v=>'$'+Number(v).toLocaleString()}} } } }));
-    });
+          plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>fmtV(ctx.parsed.y)}} },
+          scales:{ x:{grid:GRID,ticks:TICK}, y:{grid:GRID,ticks:{color:'#8aa0b4',callback:fmtV}, suggestedMax:fmt==='pct'?100:undefined} } } }));
+    }
   }
 </script>
 </body>
