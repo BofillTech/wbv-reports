@@ -180,11 +180,11 @@
       cols:[['guest_name','Guest','strong'],['villa','Villa'],['rate_plan','Rate plan'],['nights','Nights'],
             ['total','Total','money'],['adr','ADR','money'],['discount_pct','Discount %']] },
 
-    { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:false, needs:'room-types sync',
+    { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:true,
       title:'Revenue by Room Type',
-      desc:'Daily payment revenue broken out by villa / room type.',
-      view:'rpt_revenue_by_room_type', order:'day.desc', dateField:'day', dateLabel:'day',
-      cols:[['villa','Villa'],['day','Day','date'],['revenue','Revenue','money']] },
+      desc:'Booking revenue by villa type, by month (from confirmed booking value).',
+      view:'rpt_revenue_by_room_type', order:'month.desc', dateField:'month', dateLabel:'month',
+      cols:[['villa','Villa type'],['month','Month','date'],['bookings','Bookings','num'],['revenue','Revenue','money'],['nights','Nights','num'],['avg_per_night','Avg $/night','money']] },
 
     { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:true,
       title:'Payment Processing',
