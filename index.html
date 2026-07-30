@@ -44,7 +44,7 @@
     font-weight:640;cursor:pointer;font-size:13.5px}
   .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
   .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  input[type=date],input[type=search]{background:#0e1620;color:var(--txt);border:1px solid var(--line);
+  input[type=date],input[type=month],input[type=search]{background:#0e1620;color:var(--txt);border:1px solid var(--line);
     border-radius:8px;padding:7px 10px;font-size:13.5px}
   #status{color:var(--muted);font-size:13px}
   .soon-box{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:26px;color:var(--muted)}
@@ -189,7 +189,7 @@
     { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:true,
       title:'Revenue by Room Type',
       desc:'Booking revenue by villa type, by month (from confirmed booking value).',
-      view:'rpt_revenue_by_room_type', order:'month.desc', dateField:'month', dateLabel:'month',
+      view:'rpt_revenue_by_room_type', order:'month.desc', dateField:'month', dateGran:'month', dateLabel:'month',
       charts:[
         {type:'bar',  title:'Revenue by villa type (visible period)', groupBy:'villa', agg:'revenue'},
         {type:'line', title:'Revenue by month', groupBy:'month', agg:'revenue', sortKey:true, dateKey:true}
@@ -258,8 +258,9 @@
     // optional date range toolbar
     let toolbar='<div class="toolbar"><div class="row-actions">';
     if(r.dateField){
+      const itype=r.dateGran==='month'?'month':'date';
       toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
-             +'From <input type="date" id="from"> To <input type="date" id="to"> '
+             +'From <input type="'+itype+'" id="from"> To <input type="'+itype+'" id="to"> '
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
@@ -279,8 +280,13 @@
     let url=`${SUPABASE_URL}/rest/v1/${r.view}?select=*&order=${r.order}`;
     if(r.dateField){
       const f=document.getElementById('from')?.value, t=document.getElementById('to')?.value;
-      if(f) url+=`&${r.dateField}=gte.${f}`;
-      if(t) url+=`&${r.dateField}=lte.${t}${r.dateTS?'T23:59:59':''}`;
+      if(r.dateGran==='month'){
+        if(f) url+=`&${r.dateField}=gte.${f}-01`;
+        if(t) url+=`&${r.dateField}=lte.${t}-01`;
+      } else {
+        if(f) url+=`&${r.dateField}=gte.${f}`;
+        if(t) url+=`&${r.dateField}=lte.${t}${r.dateTS?'T23:59:59':''}`;
+      }
     }
     try{
       const res=await fetch(url,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}});
