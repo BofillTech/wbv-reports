@@ -58,7 +58,13 @@
   .days-hot{background:rgba(239,68,68,.15);color:#fca5a5}
   .days-warm{background:rgba(245,158,11,.15);color:#fcd34d}
   .days-ok{background:rgba(34,197,94,.13);color:#86efac}
+  .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
+  @media(max-width:900px){.charts-row{grid-template-columns:1fr}}
+  .chart-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .chart-card h3{margin:0 0 12px;font-size:14px;font-weight:640}
+  .chart-card .cbox{height:260px}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
   <div class="gate" id="gate">
@@ -184,6 +190,10 @@
       title:'Revenue by Room Type',
       desc:'Booking revenue by villa type, by month (from confirmed booking value).',
       view:'rpt_revenue_by_room_type', order:'month.desc', dateField:'month', dateLabel:'month',
+      charts:[
+        {type:'bar',  title:'Revenue by villa type (visible period)', groupBy:'villa', agg:'revenue'},
+        {type:'line', title:'Revenue by month', groupBy:'month', agg:'revenue', sortKey:true, dateKey:true}
+      ],
       cols:[['villa','Villa type'],['month','Month','date'],['bookings','Bookings','num'],['revenue','Revenue','money'],['nights','Nights','num'],['avg_per_night','Avg $/night','money']] },
 
     { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:true,
@@ -254,7 +264,7 @@
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
     toolbar+='</div><button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
-    document.getElementById('app').innerHTML=head+toolbar+'<div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
+    document.getElementById('app').innerHTML=head+toolbar+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
     loadReport(r.slug);
   }
 
@@ -281,11 +291,42 @@
       else h+=rows.map(row=>'<tr>'+r.cols.map(c=>'<td>'+cell(row[c[0]],c[2])+'</td>').join('')+'</tr>').join('');
       h+='</tbody></table>';
       const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=h;
+      drawCharts(r,rows);
       st.textContent=rows.length+' rows · updated '+new Date().toLocaleTimeString();
     }catch(e){
       const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML='<p style="color:var(--red)">Could not load: '+esc(e.message||e)+'</p>';
       st.textContent='Error';
     }
+  }
+
+  // ---- Charts (optional, per report) --------------------------------------
+  let CHARTINST=[];
+  function drawCharts(r,rows){
+    const host=document.getElementById('charts');
+    CHARTINST.forEach(c=>{try{c.destroy();}catch(e){}}); CHARTINST=[];
+    if(!host) return;
+    if(!r.charts||!r.charts.length||!rows.length){ host.innerHTML=''; return; }
+    host.innerHTML='<div class="charts-row">'+r.charts.map((c,i)=>
+      '<div class="chart-card"><h3>'+esc(c.title)+'</h3><div class="cbox"><canvas id="ch'+i+'"></canvas></div></div>').join('')+'</div>';
+    const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'};
+    r.charts.forEach((c,i)=>{
+      const map={};
+      for(const row of rows){ const k=row[c.groupBy]; if(k==null||k==='') continue; map[k]=(map[k]||0)+Number(row[c.agg]||0); }
+      let keys=Object.keys(map);
+      if(c.sortKey) keys.sort(); else keys.sort((a,b)=>map[b]-map[a]);
+      const labels=keys.map(k=>c.dateKey?dfmt(k):k);
+      const data=keys.map(k=>Math.round(map[k]));
+      const colors=keys.map((_,j)=>`hsl(${200+j*34},70%,55%)`);
+      const isLine=c.type==='line';
+      const el=document.getElementById('ch'+i); if(!el) return;
+      CHARTINST.push(new Chart(el,{ type:c.type,
+        data:{ labels, datasets:[{ label:c.title, data,
+          backgroundColor:isLine?'rgba(56,189,248,.15)':colors,
+          borderColor:isLine?'#38bdf8':colors, fill:isLine, tension:.3, pointRadius:2 }] },
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>'$'+Number(ctx.parsed.y).toLocaleString()}} },
+          scales:{ x:{grid:GRID,ticks:TICK}, y:{grid:GRID,ticks:{color:'#8aa0b4',callback:v=>'$'+Number(v).toLocaleString()}} } } }));
+    });
   }
 </script>
 </body>
