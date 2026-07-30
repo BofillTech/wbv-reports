@@ -257,10 +257,15 @@
     }
     // optional date range toolbar
     let toolbar='<div class="toolbar"><div class="row-actions">';
-    if(r.dateField){
-      const itype=r.dateGran==='month'?'month':'date';
+    if(r.dateField && r.dateGran==='month'){
+      toolbar+='<span class="muted">Filter by month:</span> '
+             +'From <select id="from"><option value="">Any</option></select> '
+             +'To <select id="to"><option value="">Any</option></select> '
+             +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
+             +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
+    } else if(r.dateField){
       toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
-             +'From <input type="'+itype+'" id="from"> To <input type="'+itype+'" id="to"> '
+             +'From <input type="date" id="from"> To <input type="date" id="to"> '
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
@@ -272,6 +277,17 @@
   function clearDates(slug){
     const f=document.getElementById('from'), t=document.getElementById('to');
     if(f) f.value=''; if(t) t.value=''; loadReport(slug);
+  }
+
+  // Populate month dropdowns from the data (once), newest first.
+  function populateMonthSelects(r,rows){
+    if(r.dateGran!=='month') return;
+    const f=document.getElementById('from'), t=document.getElementById('to');
+    if(!f||!t||f.tagName!=='SELECT'||f.dataset.filled) return;
+    const months=[...new Set(rows.map(x=>String(x[r.dateField]||'').slice(0,7)).filter(Boolean))].sort().reverse();
+    const mlabel=m=>{const [y,mo]=m.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;};
+    const opts='<option value="">Any</option>'+months.map(m=>'<option value="'+m+'">'+mlabel(m)+'</option>').join('');
+    f.innerHTML=opts; t.innerHTML=opts; f.dataset.filled='1'; t.dataset.filled='1';
   }
 
   async function loadReport(slug){
@@ -292,6 +308,7 @@
       const res=await fetch(url,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}});
       if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
       const rows=await res.json();
+      populateMonthSelects(r,rows);
       let h='<table><thead><tr>'+r.cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr></thead><tbody>';
       if(!rows.length) h+='<tr><td colspan="'+r.cols.length+'" class="muted">No rows.</td></tr>';
       else h+=rows.map(row=>'<tr>'+r.cols.map(c=>'<td>'+cell(row[c[0]],c[2])+'</td>').join('')+'</tr>').join('');
