@@ -96,6 +96,14 @@
   const ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ";
   const ACCESS_CODE = "wbv2026";
 
+  // Fixed color + order per villa type — kept identical across every chart.
+  const VILLA_ORDER = ['Hillside Villas','Palm Villa','Paradise Villas','Seaside Cottages','Sunset Villa East','Sunset Villa West','(unassigned)'];
+  const VILLA_COLORS = {
+    'Hillside Villas':'#38bdf8', 'Palm Villa':'#a855f7', 'Paradise Villas':'#22c55e',
+    'Seaside Cottages':'#f59e0b', 'Sunset Villa East':'#ef4444', 'Sunset Villa West':'#ec4899',
+    '(unassigned)':'#64748b'
+  };
+
   const money = n => (n==null||n==='' ? '—' : '$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
   const dfmt  = s => { if(!s) return '—'; const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); const d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(s); return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); };
   const cell  = (v,t)=>{
@@ -354,10 +362,12 @@
       }
       const val=k=>c.aggNum?(den[k]?100*num[k]/den[k]:0):num[k];
       let keys=Object.keys(num);
-      if(c.sortKey) keys.sort(); else keys.sort((a,b)=>val(b)-val(a));
+      if(c.groupBy==='villa') keys.sort((a,b)=>((VILLA_ORDER.indexOf(a)+1)||99)-((VILLA_ORDER.indexOf(b)+1)||99));
+      else if(c.sortKey) keys.sort();
+      else keys.sort((a,b)=>val(b)-val(a));
       const labels=keys.map(k=>c.dateKey?dfmt(k):k);
       const vals=keys.map(k=>Math.round(val(k)*10)/10);
-      const colors=keys.map((_,j)=>`hsl(${200+j*34},70%,55%)`);
+      const colors=keys.map((k,j)=>c.groupBy==='villa'?(VILLA_COLORS[k]||`hsl(${200+j*34},70%,55%)`):`hsl(${200+j*34},70%,55%)`);
       const isLine=c.type==='line';
       const fmt=c.fmt||'money';
       const fmtV=v=>fmt==='money'?'$'+Number(v).toLocaleString():fmt==='pct'?Number(v)+'%':Number(v).toLocaleString();
