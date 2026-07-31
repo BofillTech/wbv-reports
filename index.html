@@ -361,7 +361,8 @@
         if(c.aggNum){ num[k]=(num[k]||0)+Number(row[c.aggNum]||0); den[k]=(den[k]||0)+Number(row[c.aggDen]||0); }
         else { num[k]=(num[k]||0)+Number(row[c.agg]||0); }
       }
-      const val=k=>c.aggNum?(den[k]?100*num[k]/den[k]:0):num[k];
+      const ratioMul=c.fmt==='pct'?100:1;
+      const val=k=>c.aggNum?(den[k]?ratioMul*num[k]/den[k]:0):num[k];
       let keys=Object.keys(num);
       if(c.groupBy==='villa') keys.sort((a,b)=>((VILLA_ORDER.indexOf(a)+1)||99)-((VILLA_ORDER.indexOf(b)+1)||99));
       else if(c.sortKey) keys.sort();
