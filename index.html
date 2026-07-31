@@ -202,6 +202,7 @@
         {type:'bar',  title:'Revenue by villa type', groupBy:'villa', agg:'revenue', fmt:'money'},
         {type:'bar',  title:'Bookings by villa type', groupBy:'villa', agg:'bookings', fmt:'num'},
         {type:'bar',  title:'Occupancy by villa type', source:'v_mr_occupancy_by_month', dateField:'month', groupBy:'villa', aggNum:'occupied_nights', aggDen:'avail_nights', fmt:'pct'},
+        {type:'bar',  title:'Avg nightly rate by villa type', groupBy:'villa', aggNum:'revenue', aggDen:'nights', fmt:'money'},
         {type:'line', title:'Revenue by month', groupBy:'month', agg:'revenue', sortKey:true, dateKey:true, fmt:'money'}
       ],
       cols:[['villa','Villa type'],['month','Month','date'],['bookings','Bookings','num'],['revenue','Revenue','money'],['nights','Nights','num'],['avg_per_night','Avg $/night','money']] },
