@@ -205,7 +205,15 @@
         {type:'bar',  title:'Avg nightly rate by villa type', groupBy:'villa', aggNum:'revenue', aggDen:'nights', fmt:'money'},
         {type:'line', title:'Revenue by month', groupBy:'month', agg:'revenue', sortKey:true, dateKey:true, fmt:'money'}
       ],
-      cols:[['villa','Villa type'],['month','Month','date'],['bookings','Bookings','num'],['revenue','Revenue','money'],['nights','Nights','num'],['avg_per_night','Avg $/night','money']] },
+      cols:[['villa','Villa type'],['month','Month','date'],['bookings','Bookings','num'],['revenue','Revenue','money'],['nights','Nights','num'],['avg_per_night','Avg $/night','money']],
+      section2:{ title:'Cash Collected by Room Type (deposits + payments received to date)',
+        view:'rpt_cash_collected_by_room_type', order:'month.desc',
+        charts:[
+          {type:'bar',  title:'Cash collected by villa type', groupBy:'villa', agg:'collected', fmt:'money'},
+          {type:'bar',  title:'Avg collected / night by villa type', groupBy:'villa', aggNum:'collected', aggDen:'nights', fmt:'money'},
+          {type:'line', title:'Cash collected by month', groupBy:'month', agg:'collected', sortKey:true, dateKey:true, fmt:'money'}
+        ],
+        cols:[['villa','Villa type'],['month','Month','date'],['bookings','Bookings','num'],['collected','Cash collected','money'],['nights','Nights','num'],['avg_per_night','Avg collected/night','money']] } },
 
     { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:true,
       title:'Payment Processing',
@@ -281,7 +289,10 @@
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
     toolbar+='</div><button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
-    document.getElementById('app').innerHTML=head+toolbar+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
+    let body=head+toolbar+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
+    if(r.section2) body+='<div class="grp" style="margin-top:38px">'+esc(r.section2.title)+'</div>'
+      +'<div id="charts2"></div><div class="tbl-wrap" id="tbl2"><p class="muted">Loading…</p></div>';
+    document.getElementById('app').innerHTML=body;
     loadReport(r.slug);
   }
 
@@ -301,32 +312,44 @@
     f.innerHTML=opts; t.innerHTML=opts; f.dataset.filled='1'; t.dataset.filled='1';
   }
 
+  function dateSuffix(r){
+    let s='';
+    if(r.dateField){
+      const f=document.getElementById('from')?.value, t=document.getElementById('to')?.value;
+      if(r.dateGran==='month'){ if(f) s+=`&${r.dateField}=gte.${f}-01`; if(t) s+=`&${r.dateField}=lte.${t}-01`; }
+      else { if(f) s+=`&${r.dateField}=gte.${f}`; if(t) s+=`&${r.dateField}=lte.${t}${r.dateTS?'T23:59:59':''}`; }
+    }
+    return s;
+  }
+  async function fetchView(view, order, suffix){
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/${view}?select=*&order=${order}`+suffix,
+      {headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}});
+    if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
+    return res.json();
+  }
+  function tableHTML(cols, rows){
+    let h='<table><thead><tr>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr></thead><tbody>';
+    if(!rows.length) h+='<tr><td colspan="'+cols.length+'" class="muted">No rows.</td></tr>';
+    else h+=rows.map(row=>'<tr>'+cols.map(c=>'<td>'+cell(row[c[0]],c[2])+'</td>').join('')+'</tr>').join('');
+    return h+'</tbody></table>';
+  }
   async function loadReport(slug){
     const r=REPORTS.find(x=>x.slug===slug);
     const st=document.getElementById('status'); st.textContent='Loading…';
-    let url=`${SUPABASE_URL}/rest/v1/${r.view}?select=*&order=${r.order}`;
-    if(r.dateField){
-      const f=document.getElementById('from')?.value, t=document.getElementById('to')?.value;
-      if(r.dateGran==='month'){
-        if(f) url+=`&${r.dateField}=gte.${f}-01`;
-        if(t) url+=`&${r.dateField}=lte.${t}-01`;
-      } else {
-        if(f) url+=`&${r.dateField}=gte.${f}`;
-        if(t) url+=`&${r.dateField}=lte.${t}${r.dateTS?'T23:59:59':''}`;
-      }
-    }
+    const suffix=dateSuffix(r);
+    destroyCharts();
     try{
-      const res=await fetch(url,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}});
-      if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
-      const rows=await res.json();
+      const rows=await fetchView(r.view, r.order, suffix);
       populateMonthSelects(r,rows);
-      let h='<table><thead><tr>'+r.cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr></thead><tbody>';
-      if(!rows.length) h+='<tr><td colspan="'+r.cols.length+'" class="muted">No rows.</td></tr>';
-      else h+=rows.map(row=>'<tr>'+r.cols.map(c=>'<td>'+cell(row[c[0]],c[2])+'</td>').join('')+'</tr>').join('');
-      h+='</tbody></table>';
-      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=h;
-      drawCharts(r,rows);
+      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=tableHTML(r.cols, rows);
+      await drawChartsInto(r.charts, rows, 'charts', 'ch');
       st.textContent=rows.length+' rows · updated '+new Date().toLocaleTimeString();
+      if(r.section2){
+        const s=r.section2;
+        const rows2=await fetchView(s.view, s.order||r.order, suffix);
+        const tbl2=document.getElementById('tbl2'); if(tbl2) tbl2.innerHTML=tableHTML(s.cols, rows2);
+        await drawChartsInto(s.charts, rows2, 'charts2', 'c2');
+      }
     }catch(e){
       const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML='<p style="color:var(--red)">Could not load: '+esc(e.message||e)+'</p>';
       st.textContent='Error';
@@ -337,17 +360,17 @@
   // Chart config: {type, title, groupBy, agg | (aggNum & aggDen for a ratio),
   //   fmt:'money'|'num'|'pct', source (optional other view), dateField, sortKey, dateKey}
   let CHARTINST=[];
-  async function drawCharts(r,rows){
-    const host=document.getElementById('charts');
-    CHARTINST.forEach(c=>{try{c.destroy();}catch(e){}}); CHARTINST=[];
+  function destroyCharts(){ CHARTINST.forEach(c=>{try{c.destroy();}catch(e){}}); CHARTINST=[]; }
+  async function drawChartsInto(charts, rows, hostId, prefix){
+    const host=document.getElementById(hostId);
     if(!host) return;
-    if(!r.charts||!r.charts.length){ host.innerHTML=''; return; }
-    host.innerHTML='<div class="charts-row">'+r.charts.map((c,i)=>
-      '<div class="chart-card"><h3>'+esc(c.title)+'</h3><div class="cbox"><canvas id="ch'+i+'"></canvas></div></div>').join('')+'</div>';
+    if(!charts||!charts.length){ host.innerHTML=''; return; }
+    host.innerHTML='<div class="charts-row">'+charts.map((c,i)=>
+      '<div class="chart-card"><h3>'+esc(c.title)+'</h3><div class="cbox"><canvas id="'+prefix+i+'"></canvas></div></div>').join('')+'</div>';
     const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'};
     const fv=document.getElementById('from')?.value, tv=document.getElementById('to')?.value;
-    for(let i=0;i<r.charts.length;i++){
-      const c=r.charts[i];
+    for(let i=0;i<charts.length;i++){
+      const c=charts[i];
       let data=rows;
       if(c.source){
         const df=c.dateField||'month';
@@ -373,7 +396,7 @@
       const isLine=c.type==='line';
       const fmt=c.fmt||'money';
       const fmtV=v=>fmt==='money'?'$'+Number(v).toLocaleString():fmt==='pct'?Number(v)+'%':Number(v).toLocaleString();
-      const el=document.getElementById('ch'+i); if(!el) continue;
+      const el=document.getElementById(prefix+i); if(!el) continue;
       CHARTINST.push(new Chart(el,{ type:c.type,
         data:{ labels, datasets:[{ label:c.title, data:vals,
           backgroundColor:isLine?'rgba(56,189,248,.15)':colors,
