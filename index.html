@@ -63,6 +63,13 @@
   .chart-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
   .chart-card h3{margin:0 0 12px;font-size:14px;font-weight:640}
   .chart-card .cbox{height:260px}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:4px}
+  @media(max-width:700px){.kpis{grid-template-columns:1fr}}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+  .kpi-t{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+  .kpi-v{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0 4px}
+  .kpi-s{color:var(--muted);font-size:12.5px}
+  .btn.ghost.active{background:var(--accent);color:#04121c}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
@@ -130,6 +137,7 @@
     { n:2, slug:'financial-revenue', group:'Accounting (Christa)', ready:true,
       title:'Financial / Revenue',
       desc:'Every payment — date, amount, CC type, source, room, guest, stay dates. Custom date range at run time.',
+      topRevenue:true,
       view:'rpt_financial_transactions', order:'payment_date.desc', dateField:'payment_date', dateTS:true, dateLabel:'payment date',
       cols:[['payment_date','Payment date','date'],['amount_paid','Amount','money'],['cc_type','CC type'],
             ['booking_source','Source'],['room','Room'],['guest_name','Guest','strong'],
@@ -296,7 +304,7 @@
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
     toolbar+='</div><button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
-    let body=head+toolbar+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
+    let body=head+(r.topRevenue?'<div id="revtop"></div>':'')+toolbar+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
     if(r.section2){
       const ch2='<div id="charts2"></div>', tb2='<div class="tbl-wrap" id="tbl2"><p class="muted">Loading…</p></div>';
       body+='<div class="grp" style="margin-top:38px">'+esc(r.section2.title)+'</div>'
@@ -304,6 +312,7 @@
     }
     document.getElementById('app').innerHTML=body;
     loadReport(r.slug);
+    if(r.topRevenue) renderRevenueTop();
   }
 
   function clearDates(slug){
@@ -416,6 +425,74 @@
           plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>fmtV(ctx.parsed.y)}} },
           scales:{ x:{grid:GRID,ticks:TICK}, y:{grid:GRID,ticks:{color:'#8aa0b4',callback:fmtV}, suggestedMax:fmt==='pct'?100:undefined} } } }));
     }
+  }
+
+  // ---- Revenue & Cash top section (Report #2) -----------------------------
+  let REVDATA=null, REVCHART=null, REVPERIOD='ytd';
+  const monLabel=k=>{const[y,mo]=k.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;};
+  async function renderRevenueTop(){
+    const host=document.getElementById('revtop'); if(!host) return;
+    host.innerHTML=
+      '<div class="grp">Revenue &amp; Cash — by booking date</div>'
+     +'<div class="row-actions" style="margin-bottom:14px">'
+     +'<button class="btn ghost rev-per" data-p="ytd" onclick="setRevPeriod(\'ytd\')">This year</button>'
+     +'<button class="btn ghost rev-per" data-p="l12" onclick="setRevPeriod(\'l12\')">Last 12 months</button>'
+     +'<button class="btn ghost rev-per" data-p="all" onclick="setRevPeriod(\'all\')">All time</button>'
+     +'</div>'
+     +'<div class="kpis" id="revkpi"></div>'
+     +'<div class="chart-card" style="margin:16px 0 20px"><h3 id="revchartTitle">Revenue vs Cash by month</h3>'
+     +'<div class="cbox" style="height:300px"><canvas id="revcanvas"></canvas></div></div>';
+    if(!REVDATA){
+      const H={apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'};
+      try{
+        const [rev,cash]=await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_revenue_by_room_type?select=month,revenue`,{headers:H}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_cash_collected_by_room_type?select=month,collected`,{headers:H}).then(r=>r.json())
+        ]);
+        const map={};
+        for(const r of rev){ const k=String(r.month).slice(0,7); (map[k]=map[k]||{rev:0,cash:0}).rev+=Number(r.revenue||0); }
+        for(const r of cash){ const k=String(r.month).slice(0,7); (map[k]=map[k]||{rev:0,cash:0}).cash+=Number(r.collected||0); }
+        REVDATA=Object.keys(map).sort().map(k=>({mo:k,rev:map[k].rev,cash:map[k].cash}));
+      }catch(e){ host.innerHTML+='<p style="color:var(--red)">Could not load revenue: '+esc(e.message||e)+'</p>'; return; }
+    }
+    drawRev();
+  }
+  function periodStart(p){
+    const now=new Date(), y=now.getFullYear();
+    if(p==='ytd') return `${y}-01`;
+    if(p==='l12'){ const d=new Date(y,now.getMonth()-11,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+    return '0000-00';
+  }
+  window.setRevPeriod=function(p){ REVPERIOD=p; drawRev(); };
+  function kpiCard(title,val,sub,color){
+    return '<div class="kpi"><div class="kpi-t">'+esc(title)+'</div>'
+      +'<div class="kpi-v" style="color:'+color+'">$'+Math.round(val).toLocaleString()+'</div>'
+      +'<div class="kpi-s">'+esc(sub)+'</div></div>';
+  }
+  function drawRev(){
+    if(!REVDATA) return;
+    const start=periodStart(REVPERIOD);
+    const rows=REVDATA.filter(r=>r.mo>=start);
+    const totRev=rows.reduce((s,r)=>s+r.rev,0), totCash=rows.reduce((s,r)=>s+r.cash,0);
+    const label={ytd:'Year to date',l12:'Last 12 months',all:'All time'}[REVPERIOD];
+    document.getElementById('revkpi').innerHTML=
+       kpiCard('Revenue booked · '+label,totRev,'Full value of bookings made in this period','var(--accent)')
+      +kpiCard('Cash collected (deposits) · '+label,totCash,totRev>0?('$'+Math.round(totCash).toLocaleString()+' of $'+Math.round(totRev).toLocaleString()+' booked · '+Math.round(100*totCash/totRev)+'% collected'):'Deposits + payments received to date','var(--green)');
+    document.querySelectorAll('.rev-per').forEach(b=>b.classList.toggle('active', b.dataset.p===REVPERIOD));
+    document.getElementById('revchartTitle').textContent='Revenue vs Cash by month — '+label;
+    const labels=rows.map(r=>monLabel(r.mo));
+    const revV=rows.map(r=>Math.round(r.rev)), cashV=rows.map(r=>Math.round(r.cash));
+    if(REVCHART){try{REVCHART.destroy();}catch(e){}}
+    const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'}, fmtV=v=>'$'+Number(v).toLocaleString();
+    REVCHART=new Chart(document.getElementById('revcanvas'),{type:'bar',
+      data:{labels,datasets:[
+        {label:'Revenue booked',data:revV,backgroundColor:'#38bdf8'},
+        {label:'Cash collected',data:cashV,backgroundColor:'#22c55e'}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,labels:{color:'#8aa0b4',boxWidth:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtV(ctx.parsed.y)}}},
+        scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#8aa0b4',callback:fmtV}}}}});
+    CHARTINST.push(REVCHART);
   }
 </script>
 </body>
