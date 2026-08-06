@@ -428,31 +428,43 @@
   }
 
   // ---- Revenue & Cash top section (Report #2) -----------------------------
-  let REVDATA=null, REVCHART=null, REVPERIOD='ytd';
+  let REVDATA=null, REVCHART=null, REVCHART2=null, REVPERIOD='ytd';
+  const REVH={apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'};
   const monLabel=k=>{const[y,mo]=k.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;};
   async function renderRevenueTop(){
     const host=document.getElementById('revtop'); if(!host) return;
     host.innerHTML=
-      '<div class="grp">Revenue &amp; Cash — by booking date</div>'
+      '<div class="grp">Revenue &amp; Cash</div>'
      +'<div class="row-actions" style="margin-bottom:14px">'
      +'<button class="btn ghost rev-per" data-p="ytd" onclick="setRevPeriod(\'ytd\')">This year</button>'
      +'<button class="btn ghost rev-per" data-p="l12" onclick="setRevPeriod(\'l12\')">Last 12 months</button>'
      +'<button class="btn ghost rev-per" data-p="all" onclick="setRevPeriod(\'all\')">All time</button>'
      +'</div>'
      +'<div class="kpis" id="revkpi"></div>'
-     +'<div class="chart-card" style="margin:16px 0 20px"><h3 id="revchartTitle">Revenue vs Cash by month</h3>'
-     +'<div class="cbox" style="height:300px"><canvas id="revcanvas"></canvas></div></div>';
+     +'<div id="revfuture" style="margin-top:14px"></div>'
+     +'<div class="chart-card" style="margin:16px 0 18px"><h3 id="revchartTitle">Revenue vs Cash by booking month</h3>'
+     +'<div class="cbox" style="height:300px"><canvas id="revcanvas"></canvas></div></div>'
+     +'<div class="chart-card" style="margin:0 0 22px"><h3 id="revchartTitle2">Revenue vs Cash by check-in (stay) month</h3>'
+     +'<p class="muted" style="margin:-6px 0 12px;font-size:12.5px">Grouped by when guests actually stay. Past months are fully collected; upcoming months show only deposits in so far — the blue-over-green gap is the balance still owed (due 90 days before check-in).</p>'
+     +'<div class="cbox" style="height:300px"><canvas id="revcanvas2"></canvas></div></div>';
     if(!REVDATA){
-      const H={apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'};
       try{
-        const [rev,cash]=await Promise.all([
-          fetch(`${SUPABASE_URL}/rest/v1/rpt_revenue_by_room_type?select=month,revenue`,{headers:H}).then(r=>r.json()),
-          fetch(`${SUPABASE_URL}/rest/v1/rpt_cash_collected_by_room_type?select=month,collected`,{headers:H}).then(r=>r.json())
+        const [rev,cash,chk,fut]=await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_revenue_by_room_type?select=month,revenue`,{headers:REVH}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_cash_collected_by_room_type?select=month,collected`,{headers:REVH}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_by_checkin_month?select=checkin_month,revenue,collected`,{headers:REVH}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_future_to_collect`,{headers:REVH}).then(r=>r.json())
         ]);
-        const map={};
-        for(const r of rev){ const k=String(r.month).slice(0,7); (map[k]=map[k]||{rev:0,cash:0}).rev+=Number(r.revenue||0); }
-        for(const r of cash){ const k=String(r.month).slice(0,7); (map[k]=map[k]||{rev:0,cash:0}).cash+=Number(r.collected||0); }
-        REVDATA=Object.keys(map).sort().map(k=>({mo:k,rev:map[k].rev,cash:map[k].cash}));
+        const bmap={};
+        for(const r of rev){ const k=String(r.month).slice(0,7); (bmap[k]=bmap[k]||{rev:0,cash:0}).rev+=Number(r.revenue||0); }
+        for(const r of cash){ const k=String(r.month).slice(0,7); (bmap[k]=bmap[k]||{rev:0,cash:0}).cash+=Number(r.collected||0); }
+        const cmap={};
+        for(const r of chk){ const k=String(r.checkin_month).slice(0,7); const o=(cmap[k]=cmap[k]||{rev:0,cash:0}); o.rev+=Number(r.revenue||0); o.cash+=Number(r.collected||0); }
+        REVDATA={
+          book:Object.keys(bmap).sort().map(k=>({mo:k,rev:bmap[k].rev,cash:bmap[k].cash})),
+          checkin:Object.keys(cmap).sort().map(k=>({mo:k,rev:cmap[k].rev,cash:cmap[k].cash})),
+          future:(Array.isArray(fut)?fut[0]:fut)||{future_balance:0,future_bookings:0,future_revenue:0}
+        };
       }catch(e){ host.innerHTML+='<p style="color:var(--red)">Could not load revenue: '+esc(e.message||e)+'</p>'; return; }
     }
     drawRev();
@@ -469,22 +481,12 @@
       +'<div class="kpi-v" style="color:'+color+'">$'+Math.round(val).toLocaleString()+'</div>'
       +'<div class="kpi-s">'+esc(sub)+'</div></div>';
   }
-  function drawRev(){
-    if(!REVDATA) return;
-    const start=periodStart(REVPERIOD);
-    const rows=REVDATA.filter(r=>r.mo>=start);
-    const totRev=rows.reduce((s,r)=>s+r.rev,0), totCash=rows.reduce((s,r)=>s+r.cash,0);
-    const label={ytd:'Year to date',l12:'Last 12 months',all:'All time'}[REVPERIOD];
-    document.getElementById('revkpi').innerHTML=
-       kpiCard('Revenue booked · '+label,totRev,'Full value of bookings made in this period','var(--accent)')
-      +kpiCard('Cash collected (deposits) · '+label,totCash,totRev>0?('$'+Math.round(totCash).toLocaleString()+' of $'+Math.round(totRev).toLocaleString()+' booked · '+Math.round(100*totCash/totRev)+'% collected'):'Deposits + payments received to date','var(--green)');
-    document.querySelectorAll('.rev-per').forEach(b=>b.classList.toggle('active', b.dataset.p===REVPERIOD));
-    document.getElementById('revchartTitle').textContent='Revenue vs Cash by month — '+label;
+  function drawRevBars(canvasId, rows, prev){
+    const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'}, fmtV=v=>'$'+Number(v).toLocaleString();
     const labels=rows.map(r=>monLabel(r.mo));
     const revV=rows.map(r=>Math.round(r.rev)), cashV=rows.map(r=>Math.round(r.cash));
-    if(REVCHART){try{REVCHART.destroy();}catch(e){}}
-    const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'}, fmtV=v=>'$'+Number(v).toLocaleString();
-    REVCHART=new Chart(document.getElementById('revcanvas'),{type:'bar',
+    if(prev){try{prev.destroy();}catch(e){}}
+    const c=new Chart(document.getElementById(canvasId),{type:'bar',
       data:{labels,datasets:[
         {label:'Revenue booked',data:revV,backgroundColor:'#38bdf8'},
         {label:'Cash collected',data:cashV,backgroundColor:'#22c55e'}
@@ -492,7 +494,29 @@
       options:{responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:true,labels:{color:'#8aa0b4',boxWidth:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtV(ctx.parsed.y)}}},
         scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#8aa0b4',callback:fmtV}}}}});
-    CHARTINST.push(REVCHART);
+    CHARTINST.push(c); return c;
+  }
+  function drawRev(){
+    if(!REVDATA) return;
+    const start=periodStart(REVPERIOD);
+    const brows=REVDATA.book.filter(r=>r.mo>=start);
+    const crows=REVDATA.checkin.filter(r=>r.mo>=start);
+    const totRev=brows.reduce((s,r)=>s+r.rev,0), totCash=brows.reduce((s,r)=>s+r.cash,0);
+    const label={ytd:'Year to date',l12:'Last 12 months',all:'All time'}[REVPERIOD];
+    document.getElementById('revkpi').innerHTML=
+       kpiCard('Revenue booked · '+label,totRev,'Full value of bookings made in this period','var(--accent)')
+      +kpiCard('Cash collected (deposits) · '+label,totCash,totRev>0?('$'+Math.round(totCash).toLocaleString()+' of $'+Math.round(totRev).toLocaleString()+' booked · '+Math.round(100*totCash/totRev)+'% collected'):'Deposits + payments received to date','var(--green)');
+    const f=REVDATA.future;
+    document.getElementById('revfuture').innerHTML=
+      '<div class="kpi" style="border-color:var(--amber)">'
+      +'<div class="kpi-t">Still to collect · all future bookings on file</div>'
+      +'<div class="kpi-v" style="color:var(--amber)">$'+Math.round(Number(f.future_balance||0)).toLocaleString()+'</div>'
+      +'<div class="kpi-s">Outstanding balance across '+Number(f.future_bookings||0).toLocaleString()+' upcoming bookings · $'+Math.round(Number(f.future_revenue||0)).toLocaleString()+' total booked value (balances due 90 days before check-in)</div></div>';
+    document.querySelectorAll('.rev-per').forEach(b=>b.classList.toggle('active', b.dataset.p===REVPERIOD));
+    document.getElementById('revchartTitle').textContent='Revenue vs Cash by booking month — '+label;
+    document.getElementById('revchartTitle2').textContent='Revenue vs Cash by check-in (stay) month — '+label;
+    REVCHART=drawRevBars('revcanvas', brows, REVCHART);
+    REVCHART2=drawRevBars('revcanvas2', crows, REVCHART2);
   }
 </script>
 </body>
