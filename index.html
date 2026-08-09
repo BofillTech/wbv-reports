@@ -70,8 +70,13 @@
   .kpi-v{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0 4px}
   .kpi-s{color:var(--muted);font-size:12.5px}
   .btn.ghost.active{background:var(--accent);color:#04121c}
+  input.dp{background:#0e1620;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px;width:135px;cursor:pointer}
+  input.dp:focus{outline:none;border-color:var(--accent)}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/themes/dark.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 </head>
 <body>
   <div class="gate" id="gate">
@@ -296,11 +301,18 @@
     }
     // optional date range toolbar
     let toolbar='<div class="toolbar"><div class="row-actions">';
-    if(r.dateField && (r.dateGran==='month'||r.dateGran==='day')){
-      toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||(r.dateGran==='month'?'month':'day'))+':</span> '
+    if(r.dateField && r.dateGran==='month'){
+      toolbar+='<span class="muted">Filter by month:</span> '
              +'From <select id="from"><option value="">Any</option></select> '
              +'To <select id="to"><option value="">Any</option></select> '
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
+             +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
+    } else if(r.dateField && r.dateGran==='day'){
+      toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
+             +'From <input type="text" id="from" class="dp" placeholder="Any"> '
+             +'To <input type="text" id="to" class="dp" placeholder="Any"> '
+             +'<button class="ghost btn" onclick="setDayPreset(\''+r.slug+'\',7)">Last 7 days</button> '
+             +'<button class="ghost btn" onclick="setDayPreset(\''+r.slug+'\',30)">Last 30 days</button> '
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     } else if(r.dateField){
       toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
@@ -316,13 +328,27 @@
         +(r.section2.chartsBelow ? (tb2+ch2) : (ch2+tb2));
     }
     document.getElementById('app').innerHTML=body;
+    if(r.dateGran==='day' && window.flatpickr){
+      const opt={dateFormat:'Y-m-d', onChange:()=>loadReport(r.slug)};
+      flatpickr('#from', opt); flatpickr('#to', opt);
+    }
     loadReport(r.slug);
     if(r.topRevenue) renderRevenueTop();
   }
 
   function clearDates(slug){
     const f=document.getElementById('from'), t=document.getElementById('to');
-    if(f) f.value=''; if(t) t.value=''; loadReport(slug);
+    if(f){ if(f._flatpickr) f._flatpickr.clear(); else f.value=''; }
+    if(t){ if(t._flatpickr) t._flatpickr.clear(); else t.value=''; }
+    loadReport(slug);
+  }
+  function setDayPreset(slug, days){
+    const to=new Date(), from=new Date(); from.setDate(from.getDate()-(days-1));
+    const fmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const fe=document.getElementById('from'), te=document.getElementById('to');
+    if(fe._flatpickr) fe._flatpickr.setDate(fmt(from),false); else fe.value=fmt(from);
+    if(te._flatpickr) te._flatpickr.setDate(fmt(to),false); else te.value=fmt(to);
+    loadReport(slug);
   }
 
   // Populate month/day dropdowns from the data (once), newest first.
