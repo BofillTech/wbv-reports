@@ -232,8 +232,13 @@
 
     { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:true,
       title:'Payment Processing',
-      desc:'Daily payment counts and totals by method (use with a trailing-7-day view).',
-      view:'rpt_payment_processing', order:'day.desc', dateField:'day', dateLabel:'day',
+      desc:'Daily payment counts and totals by method. Pick a date range to see the total processed and daily breakdown.',
+      view:'rpt_payment_processing', order:'day.desc', dateField:'day', dateGran:'day', dateLabel:'day',
+      total:{sumField:'total', countField:'txn_count', label:'Total processed', unit:'transactions'},
+      charts:[
+        {type:'bar', title:'Total processed by day', groupBy:'day', agg:'total', sortKey:true, dateKey:true, fmt:'money'},
+        {type:'bar', title:'Total by payment method', groupBy:'payment_method', agg:'total', fmt:'money'}
+      ],
       cols:[['day','Day','date'],['payment_method','Method'],['txn_count','Count'],['total','Total','money']] },
 
     { n:14, slug:'monthly-report', page:'monthly.html', group:'Executive Summary (Ken)', ready:true,
@@ -291,8 +296,8 @@
     }
     // optional date range toolbar
     let toolbar='<div class="toolbar"><div class="row-actions">';
-    if(r.dateField && r.dateGran==='month'){
-      toolbar+='<span class="muted">Filter by month:</span> '
+    if(r.dateField && (r.dateGran==='month'||r.dateGran==='day')){
+      toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||(r.dateGran==='month'?'month':'day'))+':</span> '
              +'From <select id="from"><option value="">Any</option></select> '
              +'To <select id="to"><option value="">Any</option></select> '
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
@@ -304,7 +309,7 @@
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
     toolbar+='</div><button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
-    let body=head+(r.topRevenue?'<div id="revtop"></div>':'')+toolbar+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
+    let body=head+(r.topRevenue?'<div id="revtop"></div>':'')+toolbar+(r.total?'<div id="rangeTotal"></div>':'')+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
     if(r.section2){
       const ch2='<div id="charts2"></div>', tb2='<div class="tbl-wrap" id="tbl2"><p class="muted">Loading…</p></div>';
       body+='<div class="grp" style="margin-top:38px">'+esc(r.section2.title)+'</div>'
@@ -320,14 +325,20 @@
     if(f) f.value=''; if(t) t.value=''; loadReport(slug);
   }
 
-  // Populate month dropdowns from the data (once), newest first.
-  function populateMonthSelects(r,rows){
-    if(r.dateGran!=='month') return;
+  // Populate month/day dropdowns from the data (once), newest first.
+  function populateDateSelects(r,rows){
+    if(r.dateGran!=='month'&&r.dateGran!=='day') return;
     const f=document.getElementById('from'), t=document.getElementById('to');
     if(!f||!t||f.tagName!=='SELECT'||f.dataset.filled) return;
-    const months=[...new Set(rows.map(x=>String(x[r.dateField]||'').slice(0,7)).filter(Boolean))].sort().reverse();
-    const mlabel=m=>{const [y,mo]=m.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;};
-    const opts='<option value="">Any</option>'+months.map(m=>'<option value="'+m+'">'+mlabel(m)+'</option>').join('');
+    let vals, label;
+    if(r.dateGran==='month'){
+      vals=[...new Set(rows.map(x=>String(x[r.dateField]||'').slice(0,7)).filter(Boolean))].sort().reverse();
+      label=m=>{const [y,mo]=m.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;};
+    } else {
+      vals=[...new Set(rows.map(x=>String(x[r.dateField]||'').slice(0,10)).filter(Boolean))].sort().reverse();
+      label=d=>dfmt(d);
+    }
+    const opts='<option value="">Any</option>'+vals.map(v=>'<option value="'+v+'">'+label(v)+'</option>').join('');
     f.innerHTML=opts; t.innerHTML=opts; f.dataset.filled='1'; t.dataset.filled='1';
   }
 
@@ -359,7 +370,17 @@
     destroyCharts();
     try{
       const rows=await fetchView(r.view, r.order, suffix);
-      populateMonthSelects(r,rows);
+      populateDateSelects(r,rows);
+      if(r.total){ const rt=document.getElementById('rangeTotal'); if(rt){
+        const sum=rows.reduce((a,x)=>a+Number(x[r.total.sumField]||0),0);
+        const cnt=r.total.countField?rows.reduce((a,x)=>a+Number(x[r.total.countField]||0),0):rows.length;
+        const days=new Set(rows.map(x=>String(x[r.dateField]||'').slice(0,10)).filter(Boolean)).size;
+        const fv=document.getElementById('from')?.value, tv=document.getElementById('to')?.value;
+        const rng=(fv||tv)?((fv?dfmt(fv):'start')+' → '+(tv?dfmt(tv):'latest')):'all dates';
+        rt.innerHTML='<div class="kpi" style="margin-bottom:16px"><div class="kpi-t">'+esc(r.total.label||'Total')+' · '+esc(rng)+'</div>'
+          +'<div class="kpi-v" style="color:var(--green)">$'+Math.round(sum).toLocaleString()+'</div>'
+          +'<div class="kpi-s">'+cnt.toLocaleString()+' '+esc(r.total.unit||'transactions')+' across '+days+' day'+(days===1?'':'s')+'</div></div>';
+      } }
       const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=tableHTML(r.cols, rows);
       await drawChartsInto(r.charts, rows, 'charts', 'ch');
       st.textContent=rows.length+' rows · updated '+new Date().toLocaleTimeString();
