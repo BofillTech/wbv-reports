@@ -242,7 +242,8 @@
       total:{sumField:'total', countField:'txn_count', label:'Total processed', unit:'transactions'},
       charts:[
         {type:'bar', title:'Total processed by day', groupBy:'day', agg:'total', sortKey:true, dateKey:true, fmt:'money'},
-        {type:'bar', title:'Total by payment method', groupBy:'payment_method', agg:'total', fmt:'money'}
+        {type:'bar', title:'Total by payment method', groupBy:'payment_method', agg:'total', fmt:'money'},
+        {type:'bar', title:'New booking (deposit) vs existing booking (balance)', source:'rpt_payment_new_vs_existing', dateField:'day', groupBy:'category', agg:'total', fmt:'money'}
       ],
       cols:[['day','Day','date'],['payment_method','Method'],['txn_count','Count'],['total','Total','money']] },
 
@@ -441,8 +442,9 @@
       if(c.source){
         let u=`${SUPABASE_URL}/rest/v1/${c.source}?select=*`;
         if(c.dateField){
-          if(fv) u+=`&${c.dateField}=gte.${fv}-01`;
-          if(tv) u+=`&${c.dateField}=lte.${tv}-01`;
+          const gd=v=>(v&&v.length===7)?v+'-01':v;
+          if(fv) u+=`&${c.dateField}=gte.${gd(fv)}`;
+          if(tv) u+=`&${c.dateField}=lte.${gd(tv)}`;
         }
         try{ const res=await fetch(u,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}}); data=res.ok?await res.json():[]; }catch(e){ data=[]; }
       }
