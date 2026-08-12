@@ -6,8 +6,8 @@
 <title>White Bay Villas — Reports</title>
 <style>
   :root{
-    --bg:#0f1720; --panel:#16212e; --line:#22303f; --txt:#e7eef6; --muted:#8aa0b4;
-    --accent:#38bdf8; --red:#ef4444; --amber:#f59e0b; --green:#22c55e;
+    --bg:#ffffff; --panel:#ffffff; --line:#e4e8ee; --txt:#1b2430; --muted:#64748b;
+    --accent:#0284c7; --red:#ef4444; --amber:#f59e0b; --green:#15803d;
     --sbw:232px; --sbc:54px;
   }
   *{box-sizing:border-box}
@@ -16,7 +16,7 @@
   a{color:inherit;text-decoration:none}
   header{padding:20px 26px;border-bottom:1px solid var(--line);display:flex;
     align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
-    position:sticky;top:0;z-index:40;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.35)}
+    position:sticky;top:0;z-index:40;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.10)}
   header h1{font-size:18px;margin:0;font-weight:650}
   header .sub{color:var(--muted);font-size:13px;margin-top:2px}
   .wrap{padding:22px 26px;max-width:1250px;margin:0 auto}
@@ -31,35 +31,35 @@
   .card h3{margin:4px 0 6px;font-size:15.5px;font-weight:640}
   .card p{margin:0;color:var(--muted);font-size:13px;line-height:1.4}
   .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;margin-top:12px}
-  .b-live{background:rgba(34,197,94,.15);color:#86efac}
-  .b-soon{background:rgba(245,158,11,.13);color:#fcd34d}
+  .b-live{background:rgba(34,197,94,.15);color:#15803d}
+  .b-soon{background:rgba(245,158,11,.13);color:#b45309}
   table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);
     border-radius:12px;overflow:hidden}
   th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);font-size:13.5px;white-space:nowrap}
-  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;background:#132030}
+  th{color:var(--muted);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;background:#eef3f8}
   tr:last-child td{border-bottom:none}
-  tr:hover td{background:#182636}
+  tr:hover td{background:#f5f7fa}
   .money{font-variant-numeric:tabular-nums}
   .muted{color:var(--muted)}
   .tbl-wrap{overflow-x:auto;border-radius:12px}
-  button,.btn{background:var(--accent);color:#04121c;border:0;border-radius:9px;padding:8px 14px;
+  button,.btn{background:var(--accent);color:#ffffff;border:0;border-radius:9px;padding:8px 14px;
     font-weight:640;cursor:pointer;font-size:13.5px}
   .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
   .row-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  input[type=date],input[type=month],input[type=search]{background:#0e1620;color:var(--txt);border:1px solid var(--line);
+  input[type=date],input[type=month],input[type=search]{background:#ffffff;color:var(--txt);border:1px solid var(--line);
     border-radius:8px;padding:7px 10px;font-size:13.5px}
   #status{color:var(--muted);font-size:13px}
   .soon-box{background:var(--panel);border:1px dashed var(--line);border-radius:12px;padding:26px;color:var(--muted)}
-  .gate{position:fixed;inset:0;background:#0b1219;display:flex;align-items:center;justify-content:center;z-index:50}
+  .gate{position:fixed;inset:0;background:#f7f9fc;display:flex;align-items:center;justify-content:center;z-index:50}
   .gate .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:28px;width:330px;text-align:center}
   .gate input{width:100%;padding:11px;margin:14px 0;border-radius:9px;border:1px solid var(--line);
-    background:#0e1620;color:var(--txt);font-size:15px;text-align:center}
+    background:#ffffff;color:var(--txt);font-size:15px;text-align:center}
   .err{color:var(--red);font-size:13px;min-height:18px}
   .toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
   .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:700;font-size:12.5px;font-variant-numeric:tabular-nums}
-  .days-hot{background:rgba(239,68,68,.15);color:#fca5a5}
-  .days-warm{background:rgba(245,158,11,.15);color:#fcd34d}
-  .days-ok{background:rgba(34,197,94,.13);color:#86efac}
+  .days-hot{background:rgba(239,68,68,.15);color:#b91c1c}
+  .days-warm{background:rgba(245,158,11,.15);color:#b45309}
+  .days-ok{background:rgba(34,197,94,.13);color:#15803d}
   .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px}
   @media(max-width:900px){.charts-row{grid-template-columns:1fr}}
   .chart-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
@@ -71,10 +71,10 @@
   .kpi-t{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
   .kpi-v{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums;margin:6px 0 4px}
   .kpi-s{color:var(--muted);font-size:12.5px}
-  .btn.ghost.active{background:var(--accent);color:#04121c}
-  input.dp{background:#0e1620;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px;width:135px;cursor:pointer}
+  .btn.ghost.active{background:var(--accent);color:#ffffff}
+  input.dp{background:#ffffff;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px;width:135px;cursor:pointer}
   input.dp:focus{outline:none;border-color:var(--accent)}
-  #sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sbw);background:#0c141c;border-right:1px solid var(--line);
+  #sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sbw);background:#f3f5f8;border-right:1px solid var(--line);
     overflow-y:auto;z-index:45;transition:width .15s}
   body.sb-collapsed{padding-left:var(--sbc)}
   body.sb-collapsed #sidebar{width:var(--sbc)}
@@ -86,8 +86,8 @@
   body.sb-collapsed .sb-h-label{display:none}
   .sb-item{display:flex;align-items:center;gap:9px;padding:8px 14px;color:var(--txt);font-size:13px;
     border-left:3px solid transparent;white-space:nowrap;overflow:hidden;text-decoration:none}
-  .sb-item:hover{background:#132030}
-  .sb-item.active{background:#132030;border-left-color:var(--accent);color:var(--accent)}
+  .sb-item:hover{background:#eef3f8}
+  .sb-item.active{background:#eef3f8;border-left-color:var(--accent);color:var(--accent)}
   .sb-num{color:var(--muted);font-size:11px;min-width:18px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
   .sb-item.active .sb-num{color:var(--accent)}
   .sb-title{overflow:hidden;text-overflow:ellipsis}
@@ -96,7 +96,6 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/themes/dark.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
 </head>
 <body>
@@ -493,7 +492,7 @@
     if(!charts||!charts.length){ host.innerHTML=''; return; }
     host.innerHTML='<div class="charts-row">'+charts.map((c,i)=>
       '<div class="chart-card"><h3>'+esc(c.title)+'</h3><div class="cbox"><canvas id="'+prefix+i+'"></canvas></div></div>').join('')+'</div>';
-    const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'};
+    const GRID={color:'#e4e8ee'}, TICK={color:'#64748b'};
     const fv=document.getElementById('from')?.value, tv=document.getElementById('to')?.value;
     for(let i=0;i<charts.length;i++){
       const c=charts[i];
@@ -531,7 +530,7 @@
           borderColor:isLine?'#38bdf8':colors, fill:isLine, tension:.3, pointRadius:2 }] },
         options:{ responsive:true, maintainAspectRatio:false,
           plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>fmtV(ctx.parsed.y)}} },
-          scales:{ x:{grid:GRID,ticks:TICK}, y:{grid:GRID,ticks:{color:'#8aa0b4',callback:fmtV}, suggestedMax:fmt==='pct'?100:undefined} } } }));
+          scales:{ x:{grid:GRID,ticks:TICK}, y:{grid:GRID,ticks:{color:'#64748b',callback:fmtV}, suggestedMax:fmt==='pct'?100:undefined} } } }));
     }
   }
 
@@ -590,7 +589,7 @@
       +'<div class="kpi-s">'+esc(sub)+'</div></div>';
   }
   function drawRevBars(canvasId, rows, prev){
-    const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'}, fmtV=v=>'$'+Number(v).toLocaleString();
+    const GRID={color:'#e4e8ee'}, TICK={color:'#64748b'}, fmtV=v=>'$'+Number(v).toLocaleString();
     const labels=rows.map(r=>monLabel(r.mo));
     const revV=rows.map(r=>Math.round(r.rev)), cashV=rows.map(r=>Math.round(r.cash));
     if(prev){try{prev.destroy();}catch(e){}}
@@ -600,8 +599,8 @@
         {label:'Cash collected',data:cashV,backgroundColor:'#22c55e'}
       ]},
       options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:true,labels:{color:'#8aa0b4',boxWidth:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtV(ctx.parsed.y)}}},
-        scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#8aa0b4',callback:fmtV}}}}});
+        plugins:{legend:{display:true,labels:{color:'#64748b',boxWidth:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtV(ctx.parsed.y)}}},
+        scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#64748b',callback:fmtV}}}}});
     CHARTINST.push(c); return c;
   }
   function drawRev(){
