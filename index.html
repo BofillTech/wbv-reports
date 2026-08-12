@@ -8,9 +8,10 @@
   :root{
     --bg:#0f1720; --panel:#16212e; --line:#22303f; --txt:#e7eef6; --muted:#8aa0b4;
     --accent:#38bdf8; --red:#ef4444; --amber:#f59e0b; --green:#22c55e;
+    --sbw:232px; --sbc:54px;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);
+  body{margin:0;background:var(--bg);color:var(--txt);padding-left:var(--sbw);transition:padding-left .15s;
     font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
   a{color:inherit;text-decoration:none}
   header{padding:20px 26px;border-bottom:1px solid var(--line);display:flex;
@@ -73,6 +74,25 @@
   .btn.ghost.active{background:var(--accent);color:#04121c}
   input.dp{background:#0e1620;color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13.5px;width:135px;cursor:pointer}
   input.dp:focus{outline:none;border-color:var(--accent)}
+  #sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sbw);background:#0c141c;border-right:1px solid var(--line);
+    overflow-y:auto;z-index:45;transition:width .15s}
+  body.sb-collapsed{padding-left:var(--sbc)}
+  body.sb-collapsed #sidebar{width:var(--sbc)}
+  .sb-head{display:flex;align-items:center;gap:8px;padding:16px 12px 10px}
+  .sb-toggle{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:8px;width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;padding:0;flex:none}
+  .sb-toggle:hover{color:var(--accent);border-color:var(--accent)}
+  .sb-h-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;white-space:nowrap}
+  body.sb-collapsed .sb-h-label{display:none}
+  .sb-item{display:flex;align-items:center;gap:9px;padding:8px 14px;color:var(--txt);font-size:13px;
+    border-left:3px solid transparent;white-space:nowrap;overflow:hidden;text-decoration:none}
+  .sb-item:hover{background:#132030}
+  .sb-item.active{background:#132030;border-left-color:var(--accent);color:var(--accent)}
+  .sb-num{color:var(--muted);font-size:11px;min-width:18px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+  .sb-item.active .sb-num{color:var(--accent)}
+  .sb-title{overflow:hidden;text-overflow:ellipsis}
+  body.sb-collapsed .sb-title{display:none}
+  @media(max-width:700px){ body{padding-left:var(--sbc)} #sidebar{width:var(--sbc)} .sb-h-label,.sb-title{display:none} }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
@@ -100,6 +120,8 @@
       <span id="status"></span>
     </div>
   </header>
+
+  <aside id="sidebar" aria-label="Reports navigation"></aside>
 
   <div class="wrap" id="app"></div>
 
@@ -282,8 +304,30 @@
     const slug=(location.hash||'#/').replace(/^#\//,'').replace(/^#/,'');
     const rep=REPORTS.find(r=>r.slug===slug);
     document.getElementById('status').textContent='';
+    highlightSidebar(slug);
     if(rep) renderReport(rep); else renderHub();
   }
+  // ---- Sidebar navigation -------------------------------------------------
+  function buildSidebar(){
+    const sb=document.getElementById('sidebar'); if(!sb) return;
+    let items='<a class="sb-item" data-slug="" href="#/"><span class="sb-num">•</span><span class="sb-title">All reports</span></a>';
+    for(const r of [...REPORTS].sort((a,b)=>a.n-b.n)){
+      const href=r.page?r.page:'#/'+r.slug;
+      items+='<a class="sb-item" data-slug="'+esc(r.slug)+'" href="'+href+'" title="'+esc(r.n+' · '+r.title)+'">'
+           +'<span class="sb-num">'+r.n+'</span><span class="sb-title">'+esc(r.title)+'</span></a>';
+    }
+    sb.innerHTML='<div class="sb-head"><button class="sb-toggle" onclick="toggleSidebar()" title="Collapse / expand">☰</button>'
+      +'<span class="sb-h-label">Reports</span></div>'+items;
+  }
+  function highlightSidebar(slug){
+    document.querySelectorAll('#sidebar .sb-item').forEach(a=>a.classList.toggle('active', (a.dataset.slug||'')===(slug||'')));
+  }
+  window.toggleSidebar=function(){
+    document.body.classList.toggle('sb-collapsed');
+    try{ localStorage.setItem('wbv_sb', document.body.classList.contains('sb-collapsed')?'1':'0'); }catch(e){}
+  };
+  buildSidebar();
+  try{ if(localStorage.getItem('wbv_sb')==='1') document.body.classList.add('sb-collapsed'); }catch(e){}
 
   function renderHub(){
     document.getElementById('hTitle').textContent='White Bay Villas — Reports';
