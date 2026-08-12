@@ -183,6 +183,20 @@
         cols:[['villa','Villa type'],['guest_name','Guest','strong'],['is_primary','Booker','bool'],['phone','Phone'],['email','Email'],
               ['arrived','Arrived','date'],['checkout','Check-out','date'],['days_to_checkout','Days to check-out']] } },
 
+    { n:15, slug:'checked-out', group:'Reservations & Guest Services (Amy)', ready:true,
+      title:'Recently Checked Out',
+      desc:'Guests who checked out in the past month — the booker per reservation, plus all guests and checkouts by villa type.',
+      view:'rpt_checked_out', order:'checked_out.desc',
+      cols:[['guest_name','Guest','strong'],['phone','Phone'],['email','Email'],['arrived','Arrived','date'],
+            ['checked_out','Checked out','date'],['nights','Nights'],['days_since_checkout','Days since'],['balance','Balance','money']],
+      section2:{ title:'All Guests (everyone on these reservations — including additional guests on each booking)',
+        view:'rpt_checked_out_all_guests', order:'villa.asc,checked_out.desc,is_primary.desc', chartsBelow:true,
+        charts:[
+          {type:'bar', title:'Checkouts by villa type (past month)', source:'rpt_checked_out_by_type', groupBy:'villa', agg:'checkouts', fmt:'num'}
+        ],
+        cols:[['villa','Villa type'],['guest_name','Guest','strong'],['is_primary','Booker','bool'],['phone','Phone'],['email','Email'],
+              ['arrived','Arrived','date'],['checked_out','Checked out','date'],['days_since_checkout','Days since']] } },
+
     { n:6, slug:'deposit-gaps', group:'Reconciliation & Ops (Ken)', ready:true,
       title:'Reservation → Deposit Reconciliation',
       desc:'Confirmed reservations with no deposit posted — flags gaps to chase.',
