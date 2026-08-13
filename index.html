@@ -244,6 +244,10 @@
       title:'Source of Business',
       desc:'Reservations, room-nights and revenue grouped by booking source / marketing code.',
       view:'rpt_source_of_business', order:'revenue.desc',
+      charts:[
+        {type:'bar', title:'Revenue by booking source', source:'rpt_source_of_business_chart', groupBy:'source', agg:'revenue', fmt:'money'},
+        {type:'bar', title:'Reservations by booking source', source:'rpt_source_of_business_chart', groupBy:'source', agg:'reservations', fmt:'num'}
+      ],
       cols:[['source_category','Category'],['source','Source'],['reservations','Res'],['room_nights','Room nights'],['revenue','Revenue','money']] },
 
     { n:10, slug:'rate-discounting', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rate-plans sync + baseline',
