@@ -392,7 +392,7 @@
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
-    toolbar+='</div><button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
+    toolbar+='</div><button class="ghost btn" onclick="downloadCSV()">Download CSV</button> <button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
     let body=head+(r.topRevenue?'<div id="revtop"></div>':'')+toolbar+(r.total?'<div id="rangeTotal"></div>':'')+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
     if(r.section2){
       const ch2='<div id="charts2"></div>', tb2='<div class="tbl-wrap" id="tbl2"><p class="muted">Loading…</p></div>';
@@ -421,6 +421,25 @@
     if(fe._flatpickr) fe._flatpickr.setDate(fmt(from),false); else fe.value=fmt(from);
     if(te._flatpickr) te._flatpickr.setDate(fmt(to),false); else te.value=fmt(to);
     loadReport(slug);
+  }
+  function csvCell(v){
+    if(v==null) v='';
+    v=String(v);
+    var NL=String.fromCharCode(10);
+    var needsQuote = v.indexOf(',')>=0 || v.indexOf('"')>=0 || v.indexOf(NL)>=0;
+    if(v.indexOf('"')>=0) v=v.split('"').join('""');
+    return needsQuote ? '"'+v+'"' : v;
+  }
+  function downloadCSV(){
+    var c=window.__csv; if(!c||!c.rows){ return; }
+    var NL=String.fromCharCode(10);
+    var lines=[c.cols.map(function(x){return csvCell(x[1]);}).join(',')];
+    c.rows.forEach(function(row){ lines.push(c.cols.map(function(x){return csvCell(row[x[0]]);}).join(',')); });
+    var blob=new Blob([lines.join(NL)],{type:'text/csv;charset=utf-8'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url; a.download='wbv-'+(c.name||'report')+'-'+new Date().toISOString().slice(0,10)+'.csv';
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   }
   function toggleBoolFilter(slug){
     window.__bf = window.__bf || {};
@@ -496,6 +515,7 @@
           +'<div class="kpi-v" style="color:var(--green)">$'+Math.round(sum).toLocaleString()+'</div>'
           +'<div class="kpi-s">'+cnt.toLocaleString()+' '+esc(r.total.unit||'transactions')+' across '+days+' day'+(days===1?'':'s')+'</div></div>';
       } }
+      window.__csv={cols:r.cols, rows:rows, name:r.slug};
       const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=tableHTML(r.cols, rows);
       await drawChartsInto(r.charts, rows, 'charts', 'ch');
       st.textContent=rows.length+' rows · updated '+new Date().toLocaleTimeString();
