@@ -181,11 +181,12 @@
       title:'Balance Due',
       desc:'Guests who still owe a final balance, with contact info to follow up. (Contact fills in once the guests sync runs.)',
       view:'rpt_balance_due', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
+      forwardPreset:{label:'Due now — arriving in ≤89 days', days:89},
       charts:[
         {type:'bar', title:'Balance due — guests arriving within 89 days (due now) vs 90+ days', source:'rpt_balance_due_soon', groupBy:'bucket', agg:'balance_due', fmt:'money'}
       ],
-      cols:[['guest_name','Guest','strong'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
-            ['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
+      cols:[['reservation_id','Res #','strong'],['guest_name','Guest'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
+            ['days_to_checkin','Days to check-in'],['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
 
     { n:5, slug:'holds', group:'Reservations & Guest Services (Amy)', ready:true,
       title:'Holds / Confirmation Pending',
@@ -381,6 +382,7 @@
              +'To <input type="text" id="to" class="dp" placeholder="Any"> '
              +'<button class="ghost btn" onclick="setDayPreset(\''+r.slug+'\',7)">Last 7 days</button> '
              +'<button class="ghost btn" onclick="setDayPreset(\''+r.slug+'\',30)">Last 30 days</button> '
+             +(r.forwardPreset?'<button class="btn" onclick="setForwardPreset(\''+r.slug+'\','+r.forwardPreset.days+')">'+esc(r.forwardPreset.label)+'</button> ':'')
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     } else if(r.dateField){
       toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
@@ -412,6 +414,14 @@
   }
   function setDayPreset(slug, days){
     const to=new Date(), from=new Date(); from.setDate(from.getDate()-(days-1));
+    const fmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const fe=document.getElementById('from'), te=document.getElementById('to');
+    if(fe._flatpickr) fe._flatpickr.setDate(fmt(from),false); else fe.value=fmt(from);
+    if(te._flatpickr) te._flatpickr.setDate(fmt(to),false); else te.value=fmt(to);
+    loadReport(slug);
+  }
+  function setForwardPreset(slug, days){
+    const from=new Date(), to=new Date(); to.setDate(to.getDate()+days);
     const fmt=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     const fe=document.getElementById('from'), te=document.getElementById('to');
     if(fe._flatpickr) fe._flatpickr.setDate(fmt(from),false); else fe.value=fmt(from);
