@@ -181,6 +181,9 @@
       title:'Balance Due',
       desc:'Guests who still owe a final balance, with contact info to follow up. (Contact fills in once the guests sync runs.)',
       view:'rpt_balance_due', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
+      charts:[
+        {type:'bar', title:'Balance due — guests arriving within 89 days (due now) vs 90+ days', source:'rpt_balance_due_soon', groupBy:'bucket', agg:'balance_due', fmt:'money'}
+      ],
       cols:[['guest_name','Guest','strong'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
             ['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
 
@@ -366,7 +369,7 @@
              +'To <select id="to"><option value="">Any</option></select> '
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
-    } else if(r.dateField && r.dateGran==='day'){
+    } else if(r.dateField){
       toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
              +'From <input type="text" id="from" class="dp" placeholder="Any"> '
              +'To <input type="text" id="to" class="dp" placeholder="Any"> '
@@ -387,7 +390,7 @@
         +(r.section2.chartsBelow ? (tb2+ch2) : (ch2+tb2));
     }
     document.getElementById('app').innerHTML=body;
-    if(r.dateGran==='day' && window.flatpickr){
+    if(r.dateField && r.dateGran!=='month' && window.flatpickr){
       const opt={dateFormat:'Y-m-d', onChange:()=>loadReport(r.slug)};
       flatpickr('#from', opt); flatpickr('#to', opt);
     }
