@@ -6,8 +6,8 @@
 <title>White Bay Villas — Monthly Executive Report</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
-  :root{--bg:#0f1720;--panel:#16212e;--line:#22303f;--txt:#e7eef6;--muted:#8aa0b4;
-    --accent:#38bdf8;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--orange:#fb923c;}
+  :root{--bg:#ffffff;--panel:#ffffff;--line:#e4e8ee;--txt:#1b2430;--muted:#64748b;
+    --accent:#0284c7;--green:#15803d;--red:#ef4444;--amber:#f59e0b;--orange:#fb923c;}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);
     font:14.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -17,9 +17,9 @@
   header h1{font-size:18px;margin:0;font-weight:650}
   header .sub{color:var(--muted);font-size:13px;margin-top:2px}
   .wrap{padding:20px 26px;max-width:1250px;margin:0 auto}
-  select,button{background:#0e1620;color:var(--txt);border:1px solid var(--line);
+  select,button{background:#ffffff;color:var(--txt);border:1px solid var(--line);
     border-radius:8px;padding:7px 11px;font-size:14px}
-  button{background:var(--accent);color:#04121c;border:0;font-weight:640;cursor:pointer}
+  button{background:var(--accent);color:#ffffff;border:0;font-weight:640;cursor:pointer}
   .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
   .grp{margin:28px 0 12px;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);
     border-bottom:1px solid var(--line);padding-bottom:6px}
@@ -43,10 +43,10 @@
   .muted{color:var(--muted)}
   canvas{max-height:280px}
   .note{color:var(--muted);font-size:12.5px;margin-top:10px;font-style:italic}
-  .gate{position:fixed;inset:0;background:#0b1219;display:flex;align-items:center;justify-content:center;z-index:50}
+  .gate{position:fixed;inset:0;background:#ffffff;display:flex;align-items:center;justify-content:center;z-index:50}
   .gate .box{width:330px;text-align:center}
   .gate input{width:100%;padding:11px;margin:14px 0;border-radius:9px;border:1px solid var(--line);
-    background:#0e1620;color:var(--txt);font-size:15px;text-align:center}
+    background:#ffffff;color:var(--txt);font-size:15px;text-align:center}
   .err{color:var(--red);font-size:13px;min-height:18px}
 </style>
 </head>
@@ -125,10 +125,10 @@
   }
 
   function destroyCharts(){ while(CHARTS.length){ try{CHARTS.pop().destroy();}catch(e){} } }
-  const GRID={color:'#22303f'}, TICK={color:'#8aa0b4'};
+  const GRID={color:'#e4e8ee'}, TICK={color:'#64748b'};
   function chart(id,cfg){ const el=document.getElementById(id); if(!el) return;
     cfg.options=cfg.options||{}; cfg.options.responsive=true; cfg.options.maintainAspectRatio=false;
-    cfg.options.plugins=Object.assign({legend:{labels:{color:'#e7eef6'}}},cfg.options.plugins||{});
+    cfg.options.plugins=Object.assign({legend:{labels:{color:'#64748b'}}},cfg.options.plugins||{});
     cfg.options.scales=cfg.options.scales||{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:TICK}};
     CHARTS.push(new Chart(el,cfg)); }
 
@@ -247,7 +247,7 @@
     const yoyYears=[...new Set(S.map(r=>mKey(r.month).split('-')[0]))].sort();
     const yoyData=yoyYears.map(y=>{const rr=byKey[y+'-'+String(M).padStart(2,'0')];return rr?Number(rr.revenue):null;});
     chart('cYoy',{type:'bar',data:{labels:yoyYears,datasets:[{label:MON[M-1]+' revenue',data:yoyData,
-      backgroundColor:yoyYears.map((y,i)=>y==Y?'#38bdf8':'#2a3d50')}]},options:{plugins:{legend:{display:false}}}});
+      backgroundColor:yoyYears.map((y,i)=>y==Y?'#38bdf8':'#94a3b8')}]},options:{plugins:{legend:{display:false}}}});
 
     // trailing 12
     const allM=S.map(r=>mKey(r.month)).sort();
@@ -281,7 +281,7 @@
     chart('cOcc',{type:'line',data:{labels:occMonths.map(mLabel),
       datasets:villas.map((v,i)=>({label:v,data:occMonths.map(k=>occLookup[k+'|'+v]??null),
         borderColor:`hsl(${200+i*40},70%,58%)`,tension:.3,pointRadius:1,spanGaps:true}))},
-      options:{scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#8aa0b4',callback:v=>v+'%'}}}}});
+      options:{scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#64748b',callback:v=>v+'%'}}}}});
   }
 
   function kpi(label,n,d){return `<div class="kpi"><div class="l">${label}</div><div class="n">${n}</div><div class="d">${d||''}</div></div>`;}
