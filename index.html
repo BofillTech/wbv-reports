@@ -246,7 +246,9 @@
       view:'rpt_source_of_business', order:'revenue.desc',
       charts:[
         {type:'bar', title:'Revenue by booking source', source:'rpt_source_of_business_chart', groupBy:'source', agg:'revenue', fmt:'money'},
-        {type:'bar', title:'Reservations by booking source', source:'rpt_source_of_business_chart', groupBy:'source', agg:'reservations', fmt:'num'}
+        {type:'bar', title:'Reservations by booking source', source:'rpt_source_of_business_chart', groupBy:'source', agg:'reservations', fmt:'num'},
+        {type:'bar', title:'Revenue by channel (excludes Import & unknown)', source:'rpt_source_of_business_channels', groupBy:'source', agg:'revenue', fmt:'money'},
+        {type:'bar', title:'Reservations by channel (excludes Import & unknown)', source:'rpt_source_of_business_channels', groupBy:'source', agg:'reservations', fmt:'num'}
       ],
       cols:[['source_category','Category'],['source','Source'],['reservations','Res'],['room_nights','Room nights'],['revenue','Revenue','money']] },
 
