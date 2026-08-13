@@ -243,15 +243,15 @@
 
     { n:9, slug:'source-of-business', group:'Reconciliation & Ops (Ken)', ready:true,
       title:'Source of Business',
-      desc:'Reservations, room-nights and revenue grouped by booking source / marketing code.',
-      view:'rpt_source_of_business', order:'revenue.desc',
+      desc:'Reservations, room-nights and revenue by booking source. Use the booking-month filter to see any period; revenue = payments collected.',
+      view:'rpt_source_of_business_by_month', order:'month.desc', dateField:'month', dateGran:'month', dateLabel:'booking month',
       charts:[
-        {type:'bar', title:'Revenue by booking source', source:'rpt_source_of_business_chart', groupBy:'source', agg:'revenue', fmt:'money'},
-        {type:'bar', title:'Reservations by booking source', source:'rpt_source_of_business_chart', groupBy:'source', agg:'reservations', fmt:'num'},
-        {type:'bar', title:'Revenue by channel (excludes Import & unknown)', source:'rpt_source_of_business_channels', groupBy:'source', agg:'revenue', fmt:'money'},
-        {type:'bar', title:'Reservations by channel (excludes Import & unknown)', source:'rpt_source_of_business_channels', groupBy:'source', agg:'reservations', fmt:'num'}
+        {type:'bar', title:'Revenue by booking source', source:'rpt_source_of_business_by_month', groupBy:'source', agg:'revenue', fmt:'money', dateField:'month'},
+        {type:'bar', title:'Reservations by booking source', source:'rpt_source_of_business_by_month', groupBy:'source', agg:'reservations', fmt:'num', dateField:'month'},
+        {type:'bar', title:'Revenue by channel (excludes Import & unknown)', source:'rpt_source_of_business_by_month_channels', groupBy:'source', agg:'revenue', fmt:'money', dateField:'month'},
+        {type:'bar', title:'Reservations by channel (excludes Import & unknown)', source:'rpt_source_of_business_by_month_channels', groupBy:'source', agg:'reservations', fmt:'num', dateField:'month'}
       ],
-      cols:[['source_category','Category'],['source','Source'],['reservations','Res'],['room_nights','Room nights'],['revenue','Revenue','money']] },
+      cols:[['month_label','Booking month'],['source','Source'],['reservations','Res'],['room_nights','Room nights'],['revenue','Revenue','money']] },
 
     { n:10, slug:'rate-discounting', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rate-plans sync + baseline',
       title:'Rate Discounting',
