@@ -168,7 +168,7 @@
       topRevenue:true,
       view:'rpt_financial_transactions', order:'payment_date.desc', dateField:'payment_date', dateTS:true, dateLabel:'payment date',
       cols:[['payment_date','Payment date','date'],['amount_paid','Amount','money'],['cc_type','CC type'],
-            ['booking_source','Source'],['room','Room'],['guest_name','Guest','strong'],
+            ['booking_source','Source'],['room_unit','Room'],['room','Villa type'],['guest_name','Guest','strong'],
             ['checkin','Check-in','date'],['checkout','Check-out','date']] },
 
     { n:3, slug:'arrivals', group:'Reservations & Guest Services (Amy)', ready:true,
@@ -284,15 +284,16 @@
 
     { n:12, slug:'payment-processing', group:'Revenue (Steve)', ready:true,
       title:'Payment Processing',
-      desc:'Daily payment counts and totals by method. Pick a date range to see the total processed and daily breakdown.',
-      view:'rpt_payment_processing', order:'day.desc', dateField:'day', dateGran:'day', dateLabel:'day',
-      total:{sumField:'total', countField:'txn_count', label:'Total processed', unit:'transactions'},
+      desc:'Transaction-level payments — filter by date to match bank deposits, then Download CSV. Charts: daily totals, card type (Visa/MC vs Amex), method, and new vs existing.',
+      view:'rpt_payment_transactions', order:'transaction_datetime.desc', dateField:'day', dateGran:'day', dateLabel:'day',
+      total:{sumField:'total', countField:'txn_count', label:'Total processed', unit:'payments'},
       charts:[
-        {type:'bar', title:'Total processed by day', groupBy:'day', agg:'total', sortKey:true, dateKey:true, fmt:'money'},
-        {type:'bar', title:'Total by payment method', groupBy:'payment_method', agg:'total', fmt:'money'},
+        {type:'bar', title:'Total processed by day', source:'rpt_payment_processing', dateField:'day', groupBy:'day', agg:'total', sortKey:true, dateKey:true, fmt:'money'},
+        {type:'bar', title:'By card type — Visa/MC/Disc combined vs Amex (matches bank deposits)', source:'rpt_payment_cards_by_day', dateField:'day', groupBy:'card_group', agg:'total', fmt:'money'},
+        {type:'bar', title:'Total by payment method', source:'rpt_payment_processing', dateField:'day', groupBy:'payment_method', agg:'total', fmt:'money'},
         {type:'bar', title:'New booking (deposit) vs existing booking (balance)', source:'rpt_payment_new_vs_existing', dateField:'day', groupBy:'category', agg:'total', fmt:'money'}
       ],
-      cols:[['day','Day','date'],['payment_method','Method'],['txn_count','Count'],['total','Total','money']] },
+      cols:[['day','Date','date'],['guest_name','Guest','strong'],['room_unit','Room'],['payment_method','Card / method'],['card_last4','Last 4'],['total','Amount','money'],['source','Source'],['reservation_id','Res #']] },
 
     { n:14, slug:'monthly-report', page:'monthly.html', group:'Executive Summary (Ken)', ready:true,
       title:'Monthly Executive Report',
@@ -585,7 +586,7 @@
   }
 
   // ---- Revenue & Cash top section (Report #2) — v2.1 (checkin chart + future AR) ---
-  let REVDATA=null, REVCHART=null, REVCHART2=null, REVPERIOD='ytd';
+  let REVDATA=null, REVCHART=null, REVCHART2=null, REVPERIOD='ytd', REVFROM=null, REVTO=null;
   const REVH={apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'};
   const monLabel=k=>{const[y,mo]=k.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;};
   async function renderRevenueTop(){
@@ -596,6 +597,9 @@
      +'<button class="btn ghost rev-per" data-p="ytd" onclick="setRevPeriod(\'ytd\')">This year</button>'
      +'<button class="btn ghost rev-per" data-p="l12" onclick="setRevPeriod(\'l12\')">Last 12 months</button>'
      +'<button class="btn ghost rev-per" data-p="all" onclick="setRevPeriod(\'all\')">All time</button>'
+     +'<span class="muted" style="margin-left:10px">or custom range:</span> '
+     +'From <select id="revFrom" onchange="setRevRange()"></select> '
+     +'To <select id="revTo" onchange="setRevRange()"></select>'
      +'</div>'
      +'<div class="kpis" id="revkpi"></div>'
      +'<div id="revfuture" style="margin-top:14px"></div>'
@@ -632,7 +636,8 @@
     if(p==='l12'){ const d=new Date(y,now.getMonth()-11,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
     return '0000-00';
   }
-  window.setRevPeriod=function(p){ REVPERIOD=p; drawRev(); };
+  window.setRevPeriod=function(p){ REVPERIOD=p; REVFROM=null; REVTO=null; drawRev(); };
+  window.setRevRange=function(){ let f=document.getElementById('revFrom').value, t=document.getElementById('revTo').value; if(f&&t){ if(f>t){ const x=f; f=t; t=x; } REVPERIOD='custom'; REVFROM=f; REVTO=t; drawRev(); } };
   function kpiCard(title,val,sub,color){
     return '<div class="kpi"><div class="kpi-t">'+esc(title)+'</div>'
       +'<div class="kpi-v" style="color:'+color+'">$'+Math.round(val).toLocaleString()+'</div>'
@@ -655,11 +660,26 @@
   }
   function drawRev(){
     if(!REVDATA) return;
-    const start=periodStart(REVPERIOD);
-    const brows=REVDATA.book.filter(r=>r.mo>=start);
-    const crows=REVDATA.checkin.filter(r=>r.mo>=start);
+    const fSel=document.getElementById('revFrom'), tSel=document.getElementById('revTo');
+    if(fSel && tSel && !fSel.dataset.filled){
+      const months=[...new Set([...REVDATA.book.map(r=>r.mo), ...REVDATA.checkin.map(r=>r.mo)])].sort();
+      const opts=months.map(m=>'<option value="'+m+'">'+monLabel(m)+'</option>').join('');
+      fSel.innerHTML=opts; tSel.innerHTML=opts; fSel.dataset.filled='1'; tSel.dataset.filled='1';
+      if(months.length){ fSel.value=months[0]; tSel.value=months[months.length-1]; }
+    }
+    let brows, crows, label;
+    if(REVPERIOD==='custom' && REVFROM && REVTO){
+      brows=REVDATA.book.filter(r=>r.mo>=REVFROM && r.mo<=REVTO);
+      crows=REVDATA.checkin.filter(r=>r.mo>=REVFROM && r.mo<=REVTO);
+      label=monLabel(REVFROM)+' – '+monLabel(REVTO);
+      if(fSel) fSel.value=REVFROM; if(tSel) tSel.value=REVTO;
+    } else {
+      const start=periodStart(REVPERIOD);
+      brows=REVDATA.book.filter(r=>r.mo>=start);
+      crows=REVDATA.checkin.filter(r=>r.mo>=start);
+      label={ytd:'Year to date',l12:'Last 12 months',all:'All time'}[REVPERIOD];
+    }
     const totRev=brows.reduce((s,r)=>s+r.rev,0), totCash=brows.reduce((s,r)=>s+r.cash,0);
-    const label={ytd:'Year to date',l12:'Last 12 months',all:'All time'}[REVPERIOD];
     document.getElementById('revkpi').innerHTML=
        kpiCard('Revenue booked · '+label,totRev,'Full value of bookings made in this period','var(--accent)')
       +kpiCard('Cash collected (deposits) · '+label,totCash,totRev>0?('$'+Math.round(totCash).toLocaleString()+' of $'+Math.round(totRev).toLocaleString()+' booked · '+Math.round(100*totCash/totRev)+'% collected'):'Deposits + payments received to date','var(--green)');
@@ -669,7 +689,7 @@
       +'<div class="kpi-t">Still to collect · all future bookings on file</div>'
       +'<div class="kpi-v" style="color:var(--amber)">$'+Math.round(Number(f.future_balance||0)).toLocaleString()+'</div>'
       +'<div class="kpi-s">Outstanding balance across '+Number(f.future_bookings||0).toLocaleString()+' upcoming bookings · $'+Math.round(Number(f.future_revenue||0)).toLocaleString()+' total booked value (balances due 90 days before check-in)</div></div>';
-    document.querySelectorAll('.rev-per').forEach(b=>b.classList.toggle('active', b.dataset.p===REVPERIOD));
+    document.querySelectorAll('.rev-per').forEach(b=>b.classList.toggle('active', REVPERIOD!=='custom' && b.dataset.p===REVPERIOD));
     document.getElementById('revchartTitle').textContent='Revenue vs Cash by booking month — '+label;
     document.getElementById('revchartTitle2').textContent='Revenue vs Cash by check-in (stay) month — '+label;
     REVCHART=drawRevBars('revcanvas', brows, REVCHART);
