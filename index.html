@@ -228,7 +228,12 @@
       title:'Reservation → Deposit Reconciliation',
       desc:'Confirmed reservations with no deposit posted — flags gaps to chase.',
       view:'rpt_deposit_gaps', order:'booking_datetime.desc', dateField:'booking_datetime', dateTS:true, dateLabel:'booking date',
-      cols:[['guest_name','Guest','strong'],['status','Status'],['booking_datetime','Booked','date'],['paid_to_date','Paid to date','money']] },
+      charts:[
+        {type:'bar', title:'OTA (guest pays platform) vs Direct (deposit expected)', groupBy:'ota_group', agg:'n', fmt:'num'},
+        {type:'bar', title:'Awaiting deposit — count by check-in month', groupBy:'checkin_month', agg:'n', sortKey:true, fmt:'num'},
+        {type:'bar', title:'Awaiting deposit — by booking source', groupBy:'source', agg:'n', fmt:'num'}
+      ],
+      cols:[['guest_name','Guest','strong'],['source','Source'],['checkin','Check-in','date'],['status','Status'],['booking_datetime','Booked','date'],['booking_value','Booking value','money'],['paid_to_date','Paid to date','money']] },
 
     { n:7, slug:'recon-cb-authnet', group:'Reconciliation & Ops (Ken)', ready:false, needs:'transactions + Auth.net sync',
       title:'CB vs Authorize.net Reconciliation',
