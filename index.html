@@ -147,6 +147,7 @@
     if(t==='strong')return '<strong>'+esc(v)+'</strong>';
     if(t==='bool')  return v===true||v==='true' ? '✔' : '—';
     if(t==='pct')   return esc(v)+'%';
+    if(t==='disc'){ const d=Number(v); if(isNaN(d)) return '<span class="muted">—</span>'; const c=d>=20?'#b91c1c':d>0?'#b45309':d<0?'#15803d':'#64748b'; const t2=d>0?('-'+d+'%'):(d<0?('+'+Math.abs(d)+'%'):'0%'); return '<span style="color:'+c+';font-weight:600">'+t2+(d>=20?' ⚠':'')+'</span>'; }
     if(t==='days'){ const d=Number(v)||0; const cls=d>=14?'days-hot':d>=7?'days-warm':'days-ok'; return '<span class="pill '+cls+'">'+d+'</span>'; }
     return esc(v);
   };
@@ -274,12 +275,16 @@
       ],
       cols:[['month_label','Booking month'],['source','Source'],['reservations','Res'],['room_nights','Room nights'],['revenue','Revenue','money']] },
 
-    { n:10, slug:'rate-discounting', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rate-plans sync + baseline',
+    { n:10, slug:'rate-discounting', group:'Reconciliation & Ops (Ken)', ready:true,
       title:'Rate Discounting',
-      desc:'Actual ADR per reservation vs a reference rate (baseline still to be defined).',
-      view:'rpt_rate_discounting', order:'checkin.desc', dateField:'checkin', dateLabel:'check-in date',
-      cols:[['guest_name','Guest','strong'],['villa','Villa'],['rate_plan','Rate plan'],['nights','Nights'],
-            ['total','Total','money'],['adr','ADR','money'],['discount_pct','Discount %']] },
+      desc:'Actual ADR per booking vs each villa’s standard rate (its most common nightly rate). Discount = how far below the standard it sold; ⚠ marks 20%+ off. Filter by check-in; toggle deep discounts.',
+      view:'rpt_rate_discounting', order:'checkin.desc', dateField:'checkin', dateGran:'day', dateLabel:'check-in date',
+      boolFilter:{field:'deep_discount', label:'Deep discounts (≥20% off) only'},
+      charts:[
+        {type:'bar', title:'Average discount % vs standard rate, by villa', source:'rpt_rate_discounting_by_villa', groupBy:'villa', agg:'avg_discount_pct', fmt:'pct'},
+        {type:'bar', title:'Deep discounts (≥20% off) — count by villa', source:'rpt_rate_discounting_by_villa', groupBy:'villa', agg:'deep_count', fmt:'num'}
+      ],
+      cols:[['guest_name','Guest','strong'],['villa','Villa'],['checkin','Check-in','date'],['nights','Nights'],['adr','ADR','money'],['baseline_rate','Standard','money'],['discount_pct','Discount','disc'],['source','Source']] },
 
     { n:11, slug:'revenue-by-room-type', group:'Revenue (Steve)', ready:true,
       title:'Revenue by Room Type',
