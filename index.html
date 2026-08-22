@@ -241,6 +241,9 @@
       desc:'Authorize.net settled card deposits (by settlement date) — the source that ties to bank ACH: Visa/MC/Disc lump vs Amex separate. Filter by settlement date and Download CSV to match deposits. Monthly chart compares Cloudbeds-recorded vs gateway-settled (~0 = reconciled).',
       view:'rpt_authnet_settlements', order:'settlement_date.desc', dateField:'settlement_date', dateGran:'day', dateLabel:'settlement date',
       total:{sumField:'amount', countField:'n', label:'Settled (net of refunds)', unit:'transactions'},
+      alert:{view:'rpt_authnet_exceptions', sumField:'amount', order:'submit_time_utc.desc'},
+      section2:{title:'⚠ Settlement exceptions — transactions that did NOT settle', view:'rpt_authnet_exceptions', order:'submit_time_utc.desc',
+        cols:[['settlement_date','Date','date'],['last_name','Last name'],['first_name','First'],['account_type','Card'],['account_number','Last 4'],['amount','Attempted','money'],['transaction_status','Status'],['invoice_number','CB ref']]},
       charts:[
         {type:'bar', title:'Settled deposits by day', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'settlement_date', agg:'settled_net', sortKey:true, dateKey:true, fmt:'money'},
         {type:'bar', title:'By card type — Visa/MC/Disc vs Amex (matches bank ACH lines)', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'card_group', agg:'settled_net', fmt:'money'},
@@ -406,7 +409,7 @@
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
     toolbar+='</div><button class="ghost btn" onclick="downloadCSV()">Download CSV</button> <button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
-    let body=head+(r.topRevenue?'<div id="revtop"></div>':'')+toolbar+(r.total?'<div id="rangeTotal"></div>':'')+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
+    let body=head+(r.topRevenue?'<div id="revtop"></div>':'')+toolbar+(r.alert?'<div id="alertBox" style="margin:14px 0"></div>':'')+(r.total?'<div id="rangeTotal"></div>':'')+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
     if(r.section2){
       const ch2='<div id="charts2"></div>', tb2='<div class="tbl-wrap" id="tbl2"><p class="muted">Loading…</p></div>';
       body+='<div class="grp" style="margin-top:38px">'+esc(r.section2.title)+'</div>'
@@ -500,6 +503,15 @@
     if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
     return res.json();
   }
+  async function renderAlert(r, suffix){
+    const box=document.getElementById('alertBox'); if(!box) return;
+    try{
+      const rows=await fetchView(r.alert.view, r.alert.order||'submit_time_utc.desc', suffix);
+      const n=rows.length, sum=rows.reduce((a,x)=>a+Math.abs(Number(x[r.alert.sumField]||0)),0);
+      if(n===0){ box.innerHTML='<div style="background:#ecfdf5;border:1px solid var(--green);color:var(--green);padding:12px 14px;border-radius:10px;font-weight:600">✓ No settlement exceptions in this range — every card transaction settled cleanly.</div>'; }
+      else { box.innerHTML='<div style="background:#fef2f2;border:1px solid var(--red);color:#b91c1c;padding:12px 14px;border-radius:10px;font-weight:600">⚠ '+n+' settlement exception'+(n===1?'':'s')+' ($'+Math.round(sum).toLocaleString()+' attempted) did not settle — declined, error, voided, or expired. Details below.</div>'; }
+    }catch(e){ box.innerHTML=''; }
+  }
   function tableHTML(cols, rows){
     let h='<table><thead><tr>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr></thead><tbody>';
     if(!rows.length) h+='<tr><td colspan="'+cols.length+'" class="muted">No rows.</td></tr>';
@@ -510,6 +522,7 @@
     const r=REPORTS.find(x=>x.slug===slug);
     const st=document.getElementById('status'); st.textContent='Loading…';
     const suffix=dateSuffix(r);
+    if(r.alert) renderAlert(r, suffix);
     destroyCharts();
     try{
       let rows=await fetchView(r.view, r.order, suffix);
