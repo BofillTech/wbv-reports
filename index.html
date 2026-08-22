@@ -146,6 +146,7 @@
     if(t==='date')  return '<span class="muted">'+dfmt(v)+'</span>';
     if(t==='strong')return '<strong>'+esc(v)+'</strong>';
     if(t==='bool')  return v===true||v==='true' ? '✔' : '—';
+    if(t==='pct')   return esc(v)+'%';
     if(t==='days'){ const d=Number(v)||0; const cls=d>=14?'days-hot':d>=7?'days-warm':'days-ok'; return '<span class="pill '+cls+'">'+d+'</span>'; }
     return esc(v);
   };
@@ -251,11 +252,15 @@
       ],
       cols:[['settlement_date','Settled','date'],['last_name','Last name'],['first_name','First'],['account_type','Card'],['account_number','Last 4'],['amount','Amount','money'],['transaction_status','Status'],['invoice_number','CB ref']] },
 
-    { n:8, slug:'occupancy', group:'Reconciliation & Ops (Ken)', ready:false, needs:'rooms + room-blocks sync',
+    { n:8, slug:'occupancy', group:'Reconciliation & Ops (Ken)', ready:true,
       title:'Accurate Occupancy',
-      desc:'Occupancy that nets out offline / maintenance villas so the % reflects sellable inventory.',
-      view:'rpt_occupancy', order:'night.asc', dateField:'night', dateLabel:'night',
-      cols:[['night','Night','date'],['total_villas','Total'],['sellable_villas','Sellable'],['occupied_villas','Occupied'],['occupancy_pct','Occupancy %']] },
+      desc:'Nightly occupancy — occupied villas vs sellable inventory (18 units). Filter by night; the monthly-average chart shows the trend. (Owner/maintenance blocks not yet synced, so sellable = full inventory for now.)',
+      view:'rpt_occupancy', order:'night.asc', dateField:'night', dateGran:'day', dateLabel:'night',
+      charts:[
+        {type:'bar', title:'Average occupancy % by month', source:'rpt_occupancy_by_month', groupBy:'month', agg:'avg_occupancy_pct', sortKey:true, fmt:'pct'},
+        {type:'line', title:'Occupancy % by night', groupBy:'night', agg:'occupancy_pct', sortKey:true, dateKey:true, fmt:'pct'}
+      ],
+      cols:[['night','Night','date'],['total_villas','Total'],['sellable_villas','Sellable'],['occupied_villas','Occupied'],['occupancy_pct','Occupancy %','pct']] },
 
     { n:9, slug:'source-of-business', group:'Reconciliation & Ops (Ken)', ready:true,
       title:'Source of Business',
