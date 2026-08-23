@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>White Bay Villas — Reviews</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#ffffff;--panel:#ffffff;--line:#e4e8ee;--txt:#1b2430;--muted:#64748b;--accent:#0284c7;--green:#15803d;--amber:#f59e0b;--red:#ef4444;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:1200px;margin:0 auto;padding:22px}
+header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:18px}
+h1{font-size:22px;margin:0}
+.sub{color:var(--muted);font-size:13px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:18px}
+button.btn{border:1px solid var(--line);background:#fff;color:var(--txt);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px}
+button.btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+select,input[type=date]{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:18px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:16px}
+.kpi-t{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.kpi-v{font-size:28px;font-weight:700;margin:4px 0}
+.kpi-s{color:var(--muted);font-size:12.5px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px}
+@media(max-width:820px){.cards{grid-template-columns:1fr}}
+.card{border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 12px;font-size:15px}
+.cbox{height:280px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;color:#fff;white-space:nowrap}
+.empty{border:1px dashed var(--line);border-radius:12px;padding:34px;text-align:center;color:var(--muted)}
+footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+.gate{position:fixed;inset:0;background:#f6f8fb;display:flex;align-items:center;justify-content:center}
+.gate .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;width:320px;text-align:center}
+.gate input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:14px 0}
+.gate button{width:100%;padding:10px;background:var(--accent);color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="gate" id="gate"><div class="box"><strong>White Bay Villas</strong><div class="sub">Reviews</div><input id="code" placeholder="Access code" type="password" onkeydown="if(event.key==='Enter')checkGate()"/><button onclick="checkGate()">Enter</button></div></div>
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <div><h1>Reviews</h1><div class="sub">Google &middot; TripAdvisor &middot; OpenTable — White Bay Villas &amp; Alice's Restaurant</div></div>
+    <div><a href="./">&larr; All reports</a></div>
+  </header>
+  <div class="controls">
+    <span class="sub">Range:</span>
+    <button class="btn" data-p="30" onclick="setPreset(30)">Last 30 days</button>
+    <button class="btn" data-p="90" onclick="setPreset(90)">Last 90 days</button>
+    <button class="btn" data-p="mtd" onclick="setMTD()">MTD</button>
+    <button class="btn" data-p="ytd" onclick="setYTD()">YTD</button>
+    From <input type="date" id="from"> To <input type="date" id="to">
+    <button class="btn" onclick="load()">Apply</button>
+    <span class="sub" style="margin-left:10px">Venue:</span>
+    <select id="venue" onchange="load()">
+      <option value="">All venues</option>
+      <option value="white_bay_villas">White Bay Villas</option>
+      <option value="alices_restaurant">Alice's Restaurant</option>
+    </select>
+  </div>
+  <div id="content"></div>
+  <footer id="foot"></footer>
+</div>
+<script>
+const SUPABASE_URL='https://oyxyhxuzufidxfdcwszo.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ';
+const H={apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'};
+const PLAT={google:{label:'Google',color:'#4285F4'},tripadvisor:{label:'TripAdvisor',color:'#00AA6C'},opentable:{label:'OpenTable',color:'#DA3743'}};
+let CH=[];
+function checkGate(){ if(document.getElementById('code').value.trim()==='wbv2026'){ localStorage.setItem('wbv_rev','1'); showApp(); } else { document.getElementById('code').value=''; document.getElementById('code').placeholder='Try again'; } }
+function showApp(){ document.getElementById('gate').style.display='none'; document.getElementById('app').style.display='block'; setPreset(90); }
+if(localStorage.getItem('wbv_rev')==='1'){ window.addEventListener('DOMContentLoaded',showApp); }
+const fmtd=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+function setPreset(days){ const to=new Date(),from=new Date(); from.setDate(from.getDate()-days+1); document.getElementById('from').value=fmtd(from); document.getElementById('to').value=fmtd(to); mark(days); load(); }
+function setMTD(){ const to=new Date(); document.getElementById('from').value=fmtd(new Date(to.getFullYear(),to.getMonth(),1)); document.getElementById('to').value=fmtd(to); mark('mtd'); load(); }
+function setYTD(){ const to=new Date(); document.getElementById('from').value=fmtd(new Date(to.getFullYear(),0,1)); document.getElementById('to').value=fmtd(to); mark('ytd'); load(); }
+function mark(p){ document.querySelectorAll('.btn[data-p]').forEach(b=>b.classList.toggle('active', String(b.dataset.p)===String(p))); }
+async function load(){
+  const from=document.getElementById('from').value, to=document.getElementById('to').value, venue=document.getElementById('venue').value||null;
+  const el=document.getElementById('content'); el.innerHTML='<p class="sub">Loading&hellip;</p>';
+  CH.forEach(c=>{try{c.destroy()}catch(e){}}); CH=[];
+  let d; try{ const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/wbv_review_report',{method:'POST',headers:H,body:JSON.stringify({p_start:from,p_end:to,p_venue:venue})}); d=await r.json(); }catch(e){ el.innerHTML='<p style="color:var(--red)">Could not load: '+e+'</p>'; return; }
+  render(d);
+}
+function render(d){
+  const k=d.kpis||{}, bp=k.by_platform||{};
+  const el=document.getElementById('content');
+  const platCards=Object.keys(PLAT).map(function(s){var v=bp[s]||{}; return kpi(PLAT[s].label+' — in period', (v.in_period||0), (v.all_time||0)+' all-time'+(v.avg_rating?(' &middot; ★ '+v.avg_rating):''), PLAT[s].color);}).join('');
+  let html='<div class="kpis">'
+    +kpi('Reviews in period', k.total_in_period||0, 'across all platforms','var(--accent)')
+    +kpi('Average rating', k.avg_rating!=null?('★ '+k.avg_rating):'&mdash;','of reviews in this range','var(--amber)')
+    +kpi('Response rate', k.response_rate!=null?(k.response_rate+'%'):'&mdash;','Google replies in period','var(--green)')
+    +kpi('All-time reviews', k.all_time_total||0,'total on file','var(--muted)')
+    +'</div>';
+  html+='<div class="kpis">'+platCards+'</div>';
+  const hasData=(k.all_time_total||0)>0 || (d.reviews||[]).length>0;
+  if(!hasData){ html+='<div class="empty"><strong>No review data yet.</strong><br>Counts start building the night the TripAdvisor snapshot job is connected; Google backfills full history once its API is authorized. This panel will populate automatically.</div>'; }
+  else {
+    html+='<div class="cards"><div class="card"><h3>Reviews per week</h3><div class="cbox"><canvas id="wk"></canvas></div></div><div class="card"><h3>Rating distribution</h3><div class="cbox"><canvas id="rd"></canvas></div></div></div>';
+    html+='<div class="card"><h3>Reviews in period</h3><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Venue</th><th>Platform</th><th>Rating</th><th>Author</th><th>Review</th><th>Replied</th></tr></thead><tbody>'
+      +(d.reviews||[]).map(function(r){return '<tr><td>'+fmtDate(r.published_at)+'</td><td>'+venueName(r.venue_key)+'</td><td>'+platPill(r.source)+'</td><td>'+stars(r.rating)+'</td><td>'+esc(r.author_name||'—')+'</td><td>'+esc(r.snippet||r.title||'')+'</td><td>'+(r.has_reply?'✔':'—')+'</td></tr>';}).join('')
+      +'</tbody></table></div></div>';
+  }
+  el.innerHTML=html;
+  if(hasData){ drawWeekly(d.weekly||[]); drawDist(d.reviews||[]); }
+  document.getElementById('foot').innerHTML='Counts of record: TripAdvisor nightly snapshots &amp; Google API history. Data and reviews provided by <a href="https://www.tripadvisor.com" target="_blank" rel="noopener">Tripadvisor</a>, Google, and OpenTable. Times in America/Tortola (AST).';
+}
+function kpi(t,v,s,c){ return '<div class="kpi"><div class="kpi-t">'+t+'</div><div class="kpi-v" style="color:'+(c||'var(--txt)')+'">'+v+'</div><div class="kpi-s">'+s+'</div></div>'; }
+function venueName(k){ return k==='alices_restaurant'?"Alice's":(k==='white_bay_villas'?'White Bay Villas':k); }
+function platPill(s){ const p=PLAT[s]||{label:s,color:'#64748b'}; return '<span class="pill" style="background:'+p.color+'">'+p.label+'</span>'; }
+function stars(n){ n=Number(n)||0; return '<span style="color:var(--amber)">'+'★'.repeat(n)+'</span><span style="color:var(--line)">'+'★'.repeat(5-n)+'</span>'; }
+function fmtDate(s){ if(!s) return '—'; return new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c];}); }
+function drawWeekly(weekly){
+  const weeks=[...new Set(weekly.map(w=>w.week))].sort();
+  const sources=Object.keys(PLAT);
+  const ds=sources.map(function(s){return {label:PLAT[s].label,backgroundColor:PLAT[s].color,data:weeks.map(function(w){var f=weekly.find(x=>x.week===w&&x.source===s);return f?f.n:0;}),stack:'s'};});
+  let run=0; const totals=weeks.map(function(w){ run+=weekly.filter(x=>x.week===w).reduce((a,x)=>a+x.n,0); return run; });
+  ds.push({type:'line',label:'Running total',data:totals,borderColor:'#1b2430',backgroundColor:'transparent',yAxisID:'y1',tension:.3,pointRadius:2});
+  CH.push(new Chart(document.getElementById('wk'),{type:'bar',data:{labels:weeks.map(fmtDate),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}},y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false}}}}}));
+}
+function drawDist(reviews){
+  const buckets=[1,2,3,4,5];
+  const sources=Object.keys(PLAT);
+  const ds=sources.map(function(s){return {label:PLAT[s].label,backgroundColor:PLAT[s].color,data:buckets.map(function(b){return reviews.filter(r=>r.source===s&&Number(r.rating)===b).length;})};});
+  CH.push(new Chart(document.getElementById('rd'),{type:'bar',data:{labels:buckets.map(b=>b+'★'),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}}}}}));
+}
+</script>
+</body>
+</html>
