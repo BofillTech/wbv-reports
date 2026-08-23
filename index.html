@@ -243,9 +243,9 @@
       desc:'Authorize.net settled card deposits (by settlement date) — the source that ties to bank ACH: Visa/MC/Disc lump vs Amex separate. Filter by settlement date and Download CSV to match deposits. Monthly chart compares Cloudbeds-recorded vs gateway-settled (~0 = reconciled).',
       view:'rpt_authnet_settlements', order:'settlement_date.desc', dateField:'settlement_date', dateGran:'day', dateLabel:'settlement date',
       total:{sumField:'amount', countField:'n', label:'Settled (net of refunds)', unit:'transactions'},
-      alert:{view:'rpt_authnet_exceptions', sumField:'amount', order:'submit_time_utc.desc'},
-      section2:{title:'⚠ Settlement exceptions — transactions that did NOT settle', view:'rpt_authnet_exceptions', order:'submit_time_utc.desc',
-        cols:[['settlement_date','Date','date'],['last_name','Last name'],['first_name','First'],['account_type','Card'],['account_number','Last 4'],['amount','Attempted','money'],['transaction_status','Status'],['invoice_number','CB ref']]},
+      alert:{view:'rpt_authnet_exceptions', sumField:'amount', order:'settlement_date.desc'},
+      section2:{title:'⚠ Settlement exceptions — card charges that failed and were not recaptured (tests & retried charges excluded)', view:'rpt_authnet_exceptions', order:'has_reservation.desc,amount.desc',
+        cols:[['settlement_date','Last attempt','date'],['last_name','Last name'],['first_name','First'],['account_type','Card'],['account_number','Last 4'],['amount','Attempted','money'],['attempts','Attempts'],['has_reservation','Has reservation?','bool'],['transaction_status','Status']]},
       charts:[
         {type:'bar', title:'Settled deposits by day', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'settlement_date', agg:'settled_net', sortKey:true, dateKey:true, fmt:'money'},
         {type:'bar', title:'By card type — Visa/MC/Disc vs Amex (matches bank ACH lines)', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'card_group', agg:'settled_net', fmt:'money'},
@@ -519,7 +519,7 @@
       const rows=await fetchView(r.alert.view, r.alert.order||'submit_time_utc.desc', suffix);
       const n=rows.length, sum=rows.reduce((a,x)=>a+Math.abs(Number(x[r.alert.sumField]||0)),0);
       if(n===0){ box.innerHTML='<div style="background:#ecfdf5;border:1px solid var(--green);color:var(--green);padding:12px 14px;border-radius:10px;font-weight:600">✓ No settlement exceptions in this range — every card transaction settled cleanly.</div>'; }
-      else { box.innerHTML='<div style="background:#fef2f2;border:1px solid var(--red);color:#b91c1c;padding:12px 14px;border-radius:10px;font-weight:600">⚠ '+n+' settlement exception'+(n===1?'':'s')+' ($'+Math.round(sum).toLocaleString()+' attempted) did not settle — declined, error, voided, or expired. Details below.</div>'; }
+      else { box.innerHTML='<div style="background:#fef2f2;border:1px solid var(--red);color:#b91c1c;padding:12px 14px;border-radius:10px;font-weight:600">⚠ '+n+' unresolved card exception'+(n===1?'':'s')+' ($'+Math.round(sum).toLocaleString()+') — charges that failed and were not recaptured. Rows with a reservation (✔) are the ones to chase; no reservation usually means the card declined during booking (nothing owed). Details below.</div>'; }
     }catch(e){ box.innerHTML=''; }
   }
   function tableHTML(cols, rows){
