@@ -53,6 +53,9 @@ th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vert
 th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
 .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;color:#fff;white-space:nowrap}
 .empty{border:1px dashed var(--line);border-radius:12px;padding:34px;text-align:center;color:var(--muted)}
+.venue-sec{margin-bottom:34px}
+.venue-h{display:flex;align-items:center;gap:12px;font-size:19px;font-weight:700;margin:18px 0 14px;padding-bottom:9px;border-bottom:2px solid var(--accent)}
+.venue-h .vtag{font-size:11.5px;font-weight:600;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 10px;text-transform:uppercase;letter-spacing:.04em}
 footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}
 .gate{position:fixed;inset:0;background:#f6f8fb;display:flex;align-items:center;justify-content:center}
 .gate .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;width:320px;text-align:center}
@@ -76,12 +79,6 @@ footer{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);color:v
     <button class="btn" data-p="ytd" onclick="setYTD()">YTD</button>
     From <input type="date" id="from"> To <input type="date" id="to">
     <button class="btn" onclick="load()">Apply</button>
-    <span class="sub" style="margin-left:10px">Venue:</span>
-    <select id="venue" onchange="load()">
-      <option value="">All venues</option>
-      <option value="white_bay_villas">White Bay Villas</option>
-      <option value="alices_restaurant">Alice's Restaurant</option>
-    </select>
   </div>
   <div id="content"></div>
   <footer id="foot"></footer>
@@ -142,18 +139,28 @@ function setPreset(days){ const to=new Date(),from=new Date(); from.setDate(from
 function setMTD(){ const to=new Date(); setDates(fmtd(new Date(to.getFullYear(),to.getMonth(),1)),fmtd(to)); mark('mtd'); load(); }
 function setYTD(){ const to=new Date(); setDates(fmtd(new Date(to.getFullYear(),0,1)),fmtd(to)); mark('ytd'); load(); }
 function mark(p){ document.querySelectorAll('.btn[data-p]').forEach(b=>b.classList.toggle('active', String(b.dataset.p)===String(p))); }
+const VENUES=[['white_bay_villas','White Bay Villas'],['alices_restaurant',"Alice's Restaurant"]];
 async function load(){
-  const from=document.getElementById('from').value, to=document.getElementById('to').value, venue=document.getElementById('venue').value||null;
+  const from=document.getElementById('from').value, to=document.getElementById('to').value;
   const el=document.getElementById('content'); el.innerHTML='<p class="sub">Loading&hellip;</p>';
   CH.forEach(c=>{try{c.destroy()}catch(e){}}); CH=[];
-  let d; try{ const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/wbv_review_report',{method:'POST',headers:H,body:JSON.stringify({p_start:from,p_end:to,p_venue:venue})}); d=await r.json(); }catch(e){ el.innerHTML='<p style="color:var(--red)">Could not load: '+e+'</p>'; return; }
-  render(d);
+  let results;
+  try{
+    results=await Promise.all(VENUES.map(function(v){
+      return fetch(SUPABASE_URL+'/rest/v1/rpc/wbv_review_report',{method:'POST',headers:H,body:JSON.stringify({p_start:from,p_end:to,p_venue:v[0]})}).then(function(r){return r.json();});
+    }));
+  }catch(e){ el.innerHTML='<p style="color:var(--red)">Could not load: '+e+'</p>'; return; }
+  let html='';
+  VENUES.forEach(function(v,i){ html+=sectionHTML(v[1], results[i], i); });
+  el.innerHTML=html;
+  VENUES.forEach(function(v,i){ var d=results[i]||{}; if(((d.kpis&&d.kpis.all_time_total)||0)>0 || (d.reviews||[]).length>0){ drawWeekly(d.weekly||[],'wk_'+i); drawDist(d.reviews||[],'rd_'+i); } });
+  document.getElementById('foot').innerHTML='Counts of record: TripAdvisor nightly snapshots &amp; Google API history. Data and reviews provided by <a href="https://www.tripadvisor.com" target="_blank" rel="noopener">Tripadvisor</a>, Google, and OpenTable. Times in America/Tortola (AST).';
 }
-function render(d){
-  const k=d.kpis||{}, bp=k.by_platform||{};
-  const el=document.getElementById('content');
+function sectionHTML(name, d, idx){
+  d=d||{}; const k=d.kpis||{}, bp=k.by_platform||{};
   const platCards=Object.keys(PLAT).map(function(s){var v=bp[s]||{}; return kpi(PLAT[s].label+' — in period', (v.in_period||0), (v.all_time||0)+' all-time'+(v.avg_rating?(' &middot; ★ '+v.avg_rating):''), PLAT[s].color);}).join('');
-  let html='<div class="kpis">'
+  let html='<div class="venue-sec"><div class="venue-h">'+esc(name)+'<span class="vtag">'+Number(k.all_time_total||0).toLocaleString()+' all-time</span></div>';
+  html+='<div class="kpis">'
     +kpi('Reviews in period', k.total_in_period||0, 'across all platforms','var(--accent)')
     +kpi('Average rating', k.avg_rating!=null?('★ '+k.avg_rating):'&mdash;','of reviews in this range','var(--amber)')
     +kpi('Response rate', k.response_rate!=null?(k.response_rate+'%'):'&mdash;','Google replies in period','var(--green)')
@@ -161,16 +168,15 @@ function render(d){
     +'</div>';
   html+='<div class="kpis">'+platCards+'</div>';
   const hasData=(k.all_time_total||0)>0 || (d.reviews||[]).length>0;
-  if(!hasData){ html+='<div class="empty"><strong>No review data yet.</strong><br>Counts start building the night the TripAdvisor snapshot job is connected; Google backfills full history once its API is authorized. This panel will populate automatically.</div>'; }
+  if(!hasData){ html+='<div class="empty"><strong>No review data yet for '+esc(name)+'.</strong><br>Counts start building the night the TripAdvisor snapshot job is connected; Google backfills full history once its API is authorized. This section will populate automatically.</div>'; }
   else {
-    html+='<div class="cards"><div class="card"><h3>Reviews per week</h3><div class="cbox"><canvas id="wk"></canvas></div></div><div class="card"><h3>Rating distribution</h3><div class="cbox"><canvas id="rd"></canvas></div></div></div>';
-    html+='<div class="card"><h3>Reviews in period</h3><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Venue</th><th>Platform</th><th>Rating</th><th>Author</th><th>Review</th><th>Replied</th></tr></thead><tbody>'
-      +(d.reviews||[]).map(function(r){return '<tr><td>'+fmtDate(r.published_at)+'</td><td>'+venueName(r.venue_key)+'</td><td>'+platPill(r.source)+'</td><td>'+stars(r.rating)+'</td><td>'+esc(r.author_name||'—')+'</td><td>'+esc(r.snippet||r.title||'')+'</td><td>'+(r.has_reply?'✔':'—')+'</td></tr>';}).join('')
+    html+='<div class="cards"><div class="card"><h3>Reviews per week</h3><div class="cbox"><canvas id="wk_'+idx+'"></canvas></div></div><div class="card"><h3>Rating distribution</h3><div class="cbox"><canvas id="rd_'+idx+'"></canvas></div></div></div>';
+    html+='<div class="card"><h3>Reviews in period</h3><div style="overflow:auto"><table><thead><tr><th>Date</th><th>Platform</th><th>Rating</th><th>Author</th><th>Review</th><th>Replied</th></tr></thead><tbody>'
+      +(d.reviews||[]).map(function(r){return '<tr><td>'+fmtDate(r.published_at)+'</td><td>'+platPill(r.source)+'</td><td>'+stars(r.rating)+'</td><td>'+esc(r.author_name||'—')+'</td><td>'+esc(r.snippet||r.title||'')+'</td><td>'+(r.has_reply?'✔':'—')+'</td></tr>';}).join('')
       +'</tbody></table></div></div>';
   }
-  el.innerHTML=html;
-  if(hasData){ drawWeekly(d.weekly||[]); drawDist(d.reviews||[]); }
-  document.getElementById('foot').innerHTML='Counts of record: TripAdvisor nightly snapshots &amp; Google API history. Data and reviews provided by <a href="https://www.tripadvisor.com" target="_blank" rel="noopener">Tripadvisor</a>, Google, and OpenTable. Times in America/Tortola (AST).';
+  html+='</div>';
+  return html;
 }
 function kpi(t,v,s,c){ return '<div class="kpi"><div class="kpi-t">'+t+'</div><div class="kpi-v" style="color:'+(c||'var(--txt)')+'">'+v+'</div><div class="kpi-s">'+s+'</div></div>'; }
 function venueName(k){ return k==='alices_restaurant'?"Alice's":(k==='white_bay_villas'?'White Bay Villas':k); }
@@ -178,19 +184,21 @@ function platPill(s){ const p=PLAT[s]||{label:s,color:'#64748b'}; return '<span 
 function stars(n){ n=Number(n)||0; return '<span style="color:var(--amber)">'+'★'.repeat(n)+'</span><span style="color:var(--line)">'+'★'.repeat(5-n)+'</span>'; }
 function fmtDate(s){ if(!s) return '—'; return new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c];}); }
-function drawWeekly(weekly){
+function drawWeekly(weekly,cid){
   const weeks=[...new Set(weekly.map(w=>w.week))].sort();
   const sources=Object.keys(PLAT);
   const ds=sources.map(function(s){return {label:PLAT[s].label,backgroundColor:PLAT[s].color,data:weeks.map(function(w){var f=weekly.find(x=>x.week===w&&x.source===s);return f?f.n:0;}),stack:'s'};});
   let run=0; const totals=weeks.map(function(w){ run+=weekly.filter(x=>x.week===w).reduce((a,x)=>a+x.n,0); return run; });
   ds.push({type:'line',label:'Running total',data:totals,borderColor:'#1b2430',backgroundColor:'transparent',yAxisID:'y1',tension:.3,pointRadius:2});
-  CH.push(new Chart(document.getElementById('wk'),{type:'bar',data:{labels:weeks.map(fmtDate),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}},y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false}}}}}));
+  const cv=document.getElementById(cid); if(!cv) return;
+  CH.push(new Chart(cv,{type:'bar',data:{labels:weeks.map(fmtDate),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}},y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false}}}}}));
 }
-function drawDist(reviews){
+function drawDist(reviews,cid){
   const buckets=[1,2,3,4,5];
   const sources=Object.keys(PLAT);
   const ds=sources.map(function(s){return {label:PLAT[s].label,backgroundColor:PLAT[s].color,data:buckets.map(function(b){return reviews.filter(r=>r.source===s&&Number(r.rating)===b).length;})};});
-  CH.push(new Chart(document.getElementById('rd'),{type:'bar',data:{labels:buckets.map(b=>b+'★'),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}}}}}));
+  const cv=document.getElementById(cid); if(!cv) return;
+  CH.push(new Chart(cv,{type:'bar',data:{labels:buckets.map(b=>b+'★'),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}}}}}));
 }
 </script>
 </body>
