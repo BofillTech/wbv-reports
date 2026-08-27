@@ -84,6 +84,8 @@
   .sb-toggle:hover{color:var(--accent);border-color:var(--accent)}
   .sb-h-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;white-space:nowrap}
   body.sb-collapsed .sb-h-label{display:none}
+  .sb-cat{padding:14px 14px 4px;color:var(--muted);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden}
+  body.sb-collapsed .sb-cat{visibility:hidden;height:10px;padding:6px 0 0}
   .sb-item{display:flex;align-items:center;gap:9px;padding:8px 14px;color:var(--txt);font-size:13px;
     border-left:3px solid transparent;white-space:nowrap;overflow:hidden;text-decoration:none}
   .sb-item:hover{background:#eef3f8}
@@ -329,6 +331,17 @@
       desc:'Google, TripAdvisor & OpenTable reviews for White Bay Villas and Alice\u2019s Restaurant \u2014 count, average rating and response rate for any date range, with weekly trend and rating breakdown.' },
   ];
 
+  // Category → report numbers (order within each list = display order). Numbers stay fixed.
+  const CATS = [
+    ['Operations',                  [1,3,5,13,15,8]],
+    ['Finance & Payments',          [2,4,6,7,12]],
+    ['Sales & Revenue Management',  [9,10,11]],
+    ['Executive',                   [14]],
+    ['Reputation',                  [16]],
+  ];
+  const CAT_OF={}; CATS.forEach(([name,nums])=>nums.forEach(n=>{CAT_OF[n]=name;}));
+  const REP_BY_N={}; REPORTS.forEach(r=>{REP_BY_N[r.n]=r;});
+
   // ---- Gate ---------------------------------------------------------------
   function tryGate(){
     const v=document.getElementById('code').value.trim();
@@ -351,10 +364,14 @@
   function buildSidebar(){
     const sb=document.getElementById('sidebar'); if(!sb) return;
     let items='<a class="sb-item" data-slug="" href="#/"><span class="sb-num">•</span><span class="sb-title">All reports</span></a>';
-    for(const r of [...REPORTS].sort((a,b)=>a.n-b.n)){
-      const href=r.page?r.page:'#/'+r.slug;
-      items+='<a class="sb-item" data-slug="'+esc(r.slug)+'" href="'+href+'" title="'+esc(r.n+' · '+r.title)+'">'
-           +'<span class="sb-num">'+r.n+'</span><span class="sb-title">'+esc(r.title)+'</span></a>';
+    for(const [cat,nums] of CATS){
+      items+='<div class="sb-cat">'+esc(cat)+'</div>';
+      for(const n of nums){
+        const r=REP_BY_N[n]; if(!r) continue;
+        const href=r.page?r.page:'#/'+r.slug;
+        items+='<a class="sb-item" data-slug="'+esc(r.slug)+'" href="'+href+'" title="'+esc(r.n+' · '+r.title)+'">'
+             +'<span class="sb-num">'+r.n+'</span><span class="sb-title">'+esc(r.title)+'</span></a>';
+      }
     }
     sb.innerHTML='<div class="sb-head"><button class="sb-toggle" onclick="toggleSidebar()" title="Collapse / expand">☰</button>'
       +'<span class="sb-h-label">Reports</span></div>'+items;
@@ -372,11 +389,11 @@
   function renderHub(){
     document.getElementById('hTitle').textContent='White Bay Villas — Reports';
     document.getElementById('hSub').textContent=REPORTS.filter(r=>r.ready).length+' of '+REPORTS.length+' live';
-    const groups=[...new Set(REPORTS.map(r=>r.group))];
     let html='';
-    for(const g of groups){
-      html+='<div class="grp">'+esc(g)+'</div><div class="cards">';
-      for(const r of REPORTS.filter(x=>x.group===g)){
+    for(const [cat,nums] of CATS){
+      html+='<div class="grp">'+esc(cat)+'</div><div class="cards">';
+      for(const n of nums){
+        const r=REP_BY_N[n]; if(!r) continue;
         html+='<a class="card" href="'+(r.page?r.page:'#/'+r.slug)+'">'
             +'<div class="num">Report '+r.n+'</div><h3>'+r.n+'. '+esc(r.title)+'</h3>'
             +'<p>'+esc(r.desc)+'</p>'
@@ -391,7 +408,7 @@
 
   async function renderReport(r){
     document.getElementById('hTitle').textContent=r.n+'. '+r.title;
-    document.getElementById('hSub').textContent=r.group;
+    document.getElementById('hSub').textContent=CAT_OF[r.n]||r.group;
     let head='<div class="crumbs"><a href="#/">All reports</a> › '+esc(r.title)+'</div>';
     if(!r.ready){
       document.getElementById('app').innerHTML=head+'<div class="soon-box"><strong>Not live yet.</strong><br>'
