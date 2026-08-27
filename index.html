@@ -378,7 +378,7 @@
       html+='<div class="grp">'+esc(g)+'</div><div class="cards">';
       for(const r of REPORTS.filter(x=>x.group===g)){
         html+='<a class="card" href="'+(r.page?r.page:'#/'+r.slug)+'">'
-            +'<div class="num">Report '+r.n+'</div><h3>'+esc(r.title)+'</h3>'
+            +'<div class="num">Report '+r.n+'</div><h3>'+r.n+'. '+esc(r.title)+'</h3>'
             +'<p>'+esc(r.desc)+'</p>'
             +(r.ready?'<span class="badge b-live">● Live</span>'
                      :'<span class="badge b-soon">Waiting on '+esc(r.needs||'data')+'</span>')
@@ -390,7 +390,7 @@
   }
 
   async function renderReport(r){
-    document.getElementById('hTitle').textContent=r.title;
+    document.getElementById('hTitle').textContent=r.n+'. '+r.title;
     document.getElementById('hSub').textContent=r.group;
     let head='<div class="crumbs"><a href="#/">All reports</a> › '+esc(r.title)+'</div>';
     if(!r.ready){
@@ -643,6 +643,7 @@
      +'<div class="kpis" id="revkpi"></div>'
      +'<div id="revfuture" style="margin-top:14px"></div>'
      +'<div class="chart-card" style="margin:16px 0 18px"><h3 id="revchartTitle">Revenue vs Cash by booking month</h3>'
+     +'<p class="muted" style="margin:-6px 0 12px;font-size:12.5px">Grouped by <strong>when the booking was made</strong>, not when guests stay. Recent months look under-collected because most of what was booked then is for stays still upcoming — only the deposit (typically 50%) is in so far; the rest is due 90 days before check-in. Every booking whose stay has already passed is collected in full. For a fully-collected view of completed months, see the by-stay-month chart below.</p>'
      +'<div class="cbox" style="height:300px"><canvas id="revcanvas"></canvas></div></div>'
      +'<div class="chart-card" style="margin:0 0 22px"><h3 id="revchartTitle2">Revenue vs Cash by check-in (stay) month</h3>'
      +'<p class="muted" style="margin:-6px 0 12px;font-size:12.5px">Grouped by when guests actually stay. Past months are fully collected; upcoming months show only deposits in so far — the blue-over-green gap is the balance still owed (due 90 days before check-in).</p>'
