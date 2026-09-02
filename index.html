@@ -191,7 +191,7 @@
       charts:[
         {type:'bar', title:'Balance due — guests arriving within 89 days (due now) vs 90+ days', source:'rpt_balance_due_soon', groupBy:'bucket', agg:'balance_due', fmt:'money'}
       ],
-      cols:[['reservation_id','Res #','strong'],['guest_name','Guest'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
+      cols:[['reservation_id','Res #','strong'],['guest_name','Guest'],['res_type','Type'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
             ['days_to_checkin','Days to check-in'],['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
 
     { n:5, slug:'holds', group:'Reservations & Guest Services (Amy)', ready:true,
