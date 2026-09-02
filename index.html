@@ -351,8 +351,13 @@
 
     { n:18, slug:'last-minute', group:'Operations', ready:true,
       title:'Last-Minute Reservations',
-      desc:'Current and upcoming stays booked 3 days or fewer before check-in (including same-day) — short-notice arrivals for the front desk to prep. Refreshes daily; already-checked-out stays drop off. Filter by check-in date.',
-      view:'rpt_last_minute', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
+      desc:'Reservations booked 3 days or fewer before check-in (including same-day) — short-notice arrivals for the front desk to prep. Use “All future reservations” for current/upcoming stays or “All past reservations” to review history. Refreshes daily; filter by check-in date.',
+      view:'rpt_last_minute', order:'checkin.desc', dateField:'checkin', dateLabel:'check-in date',
+      boolFiltersExclusive:true,
+      boolFilters:[
+        {field:'is_future', label:'All future reservations'},
+        {field:'is_past', label:'All past reservations'}
+      ],
       charts:[
         {type:'bar', title:'Last-minute bookings by source', groupBy:'res_type', agg:'n', fmt:'num'},
         {type:'bar', title:'Last-minute bookings by lead time (days before check-in)', groupBy:'lead_days', agg:'n', sortKey:true, fmt:'num'}
@@ -527,7 +532,10 @@
   function toggleBoolFilter2(slug, field){
     window.__bf2 = window.__bf2 || {};
     window.__bf2[slug] = window.__bf2[slug] || {};
-    window.__bf2[slug][field] = !window.__bf2[slug][field];
+    const next = !window.__bf2[slug][field];
+    const rep = REPORTS.find(x=>x.slug===slug);
+    if(rep && rep.boolFiltersExclusive){ window.__bf2[slug] = {}; }   // radio-style: one at a time
+    window.__bf2[slug][field] = next;
     loadReport(slug);
   }
   function setForwardPreset(slug, days){
