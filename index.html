@@ -364,11 +364,15 @@
       ],
       cols:[['booking_datetime','Booked','date'],['lead_days','Lead (days)'],['guest_name','Guest','strong'],['res_type','Type'],['villa','Villa'],['phone','Phone'],
             ['checkin','Check-in','date'],['checkout','Check-out','date'],['nights','Nights'],['total','Total','money'],['balance','Balance','money'],['status','Status']] },
+
+    { n:19, slug:'quote', page:'quote.html', group:'Operations', ready:true,
+      title:'Quote Tool',
+      desc:'Enter check-in, check-out and villa — pulls live Cloudbeds rates, taxes and fees into a quote table, and generates a copy/paste email with a direct-booking link. Use this instead of putting a hold in Cloudbeds.' },
   ];
 
   // Category → report numbers (order within each list = display order). Numbers stay fixed.
   const CATS = [
-    ['Operations',                  [1,3,5,13,15,8,17,18]],
+    ['Operations',                  [1,3,5,13,15,8,17,18,19]],
     ['Finance & Payments',          [2,4,6,7,12]],
     ['Sales & Revenue Management',  [9,10,11]],
     ['Executive',                   [14]],
