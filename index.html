@@ -351,8 +351,8 @@
 
     { n:18, slug:'last-minute', group:'Operations', ready:true,
       title:'Last-Minute Reservations',
-      desc:'Reservations booked 3 days or fewer before check-in (including same-day) — short-notice arrivals for the front desk to prep. Filter by booking date.',
-      view:'rpt_last_minute', order:'booking_datetime.desc', dateField:'booking_datetime', dateTS:true, dateLabel:'booking date',
+      desc:'Current and upcoming stays booked 3 days or fewer before check-in (including same-day) — short-notice arrivals for the front desk to prep. Refreshes daily; already-checked-out stays drop off. Filter by check-in date.',
+      view:'rpt_last_minute', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
       charts:[
         {type:'bar', title:'Last-minute bookings by source', groupBy:'res_type', agg:'n', fmt:'num'},
         {type:'bar', title:'Last-minute bookings by lead time (days before check-in)', groupBy:'lead_days', agg:'n', sortKey:true, fmt:'num'}
