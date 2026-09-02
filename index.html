@@ -348,11 +348,22 @@
             ['room_subtotal','Room','money'],['taxes','Taxes','money'],['add_fees','Add’l fees','money'],['grand_total','Total','money'],
             ['deposit_paid','Deposit paid','money'],['remainder','Remainder','money'],
             ['missing_resort_fee','Missing fee?','warn'],['deposit_uneven','Uneven?','warn']] },
+
+    { n:18, slug:'last-minute', group:'Operations', ready:true,
+      title:'Last-Minute Reservations',
+      desc:'Reservations booked 3 days or fewer before check-in (including same-day) — short-notice arrivals for the front desk to prep. Filter by booking date.',
+      view:'rpt_last_minute', order:'booking_datetime.desc', dateField:'booking_datetime', dateTS:true, dateLabel:'booking date',
+      charts:[
+        {type:'bar', title:'Last-minute bookings by source', groupBy:'res_type', agg:'n', fmt:'num'},
+        {type:'bar', title:'Last-minute bookings by lead time (days before check-in)', groupBy:'lead_days', agg:'n', sortKey:true, fmt:'num'}
+      ],
+      cols:[['booking_datetime','Booked','date'],['lead_days','Lead (days)'],['guest_name','Guest','strong'],['res_type','Type'],['villa','Villa'],['phone','Phone'],
+            ['checkin','Check-in','date'],['checkout','Check-out','date'],['nights','Nights'],['total','Total','money'],['balance','Balance','money'],['status','Status']] },
   ];
 
   // Category → report numbers (order within each list = display order). Numbers stay fixed.
   const CATS = [
-    ['Operations',                  [1,3,5,13,15,8,17]],
+    ['Operations',                  [1,3,5,13,15,8,17,18]],
     ['Finance & Payments',          [2,4,6,7,12]],
     ['Sales & Revenue Management',  [9,10,11]],
     ['Executive',                   [14]],
