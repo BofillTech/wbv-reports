@@ -369,11 +369,19 @@
     { n:19, slug:'quote', page:'quote.html', group:'Operations', ready:true,
       title:'Quote Tool',
       desc:'Enter check-in, check-out and villa — pulls live Cloudbeds rates, taxes and fees into a quote table, and generates a copy/paste email with a direct-booking link. Use this instead of putting a hold in Cloudbeds.' },
+
+    { n:20, slug:'unassigned-rooms', group:'Operations', ready:true,
+      title:'Unassigned Rooms',
+      desc:'Future reservations that still need a specific unit assigned in Cloudbeds — shows the room type booked so the front desk can assign a villa before arrival. Refreshes daily; filter by check-in date or room type.',
+      view:'rpt_unassigned_rooms', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
+      selectFilter:{field:'room_type', label:'Room type'},
+      cols:[['checkin','Check-in','date'],['guest_name','Guest','strong'],['reservation_id','Res #'],['res_type','Type'],['room_type','Room type needed'],
+            ['nights','Nights'],['days_to_checkin','Days to check-in'],['room_total','Room total','money'],['balance_due','Balance','money'],['booking_date','Booked','date'],['status','Status']] },
   ];
 
   // Category → report numbers (order within each list = display order). Numbers stay fixed.
   const CATS = [
-    ['Operations',                  [1,3,5,13,15,8,17,18,19]],
+    ['Operations',                  [1,3,5,13,15,8,17,18,19,20]],
     ['Finance & Payments',          [2,4,6,7,12]],
     ['Sales & Revenue Management',  [9,10,11]],
     ['Executive',                   [14]],
