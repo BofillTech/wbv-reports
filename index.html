@@ -188,11 +188,12 @@
       desc:'Guests who still owe a final balance, with contact info to follow up. (Contact fills in once the guests sync runs.)',
       view:'rpt_balance_due', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
       forwardPreset:{label:'Due now — arriving in ≤89 days', days:89},
+      selectFilter:{field:'res_type', label:'Type'},
       charts:[
         {type:'bar', title:'Balance due — guests arriving within 89 days (due now) vs 90+ days', source:'rpt_balance_due_soon', groupBy:'bucket', agg:'balance_due', fmt:'money'}
       ],
-      cols:[['reservation_id','Res #','strong'],['guest_name','Guest'],['res_type','Type'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
-            ['days_to_checkin','Days to check-in'],['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
+      cols:[['reservation_id','Res #','strong'],['guest_name','Guest'],['res_type','Type'],['cc_on_file','Card on file'],['email','Email'],['phone','Phone'],['balance_due','Balance','money'],
+            ['days_to_checkin','Days to check-in'],['booking_date','Booked','date'],['checkin','Check-in','date'],['checkout','Check-out','date'],['status','Status']] },
 
     { n:5, slug:'holds', group:'Reservations & Guest Services (Amy)', ready:true,
       title:'Holds / Confirmation Pending',
@@ -479,6 +480,10 @@
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     }
+    if(r.selectFilter){
+      toolbar+=' <span class="muted" style="margin-left:6px">'+esc(r.selectFilter.label||'Filter')+':</span> '
+             +'<select id="selfilter" class="dp" onchange="loadReport(\''+r.slug+'\')"><option value="">All</option></select>';
+    }
     toolbar+='</div><button class="ghost btn" onclick="downloadCSV()">Download CSV</button> <button class="ghost btn" onclick="loadReport(\''+r.slug+'\')">Refresh</button></div>';
     let body=head+(r.topRevenue?'<div id="revtop"></div>':'')+toolbar+(r.alert?'<div id="alertBox" style="margin:14px 0"></div>':'')+(r.total?'<div id="rangeTotal"></div>':'')+'<div id="charts"></div><div class="tbl-wrap" id="tbl"><p class="muted">Loading…</p></div>';
     if(r.section2){
@@ -619,6 +624,16 @@
           const b=document.getElementById('bfbtn-'+bf.field);
           if(b){ b.style.background=on?'var(--accent)':''; b.style.color=on?'#fff':''; }
         });
+      }
+      if(r.selectFilter){
+        const sel=document.getElementById('selfilter');
+        if(sel && !sel.dataset.filled){
+          const vals=[...new Set(rows.map(x=>x[r.selectFilter.field]).filter(v=>v!=null&&v!==''))].sort();
+          sel.innerHTML='<option value="">All</option>'+vals.map(v=>'<option value="'+esc(v)+'">'+esc(v)+'</option>').join('');
+          sel.dataset.filled='1';
+        }
+        const sv=sel?sel.value:'';
+        if(sv) rows=rows.filter(x=>String(x[r.selectFilter.field])===sv);
       }
       if(r.total){ const rt=document.getElementById('rangeTotal'); if(rt){
         const sum=rows.reduce((a,x)=>a+Number(x[r.total.sumField]||0),0);
