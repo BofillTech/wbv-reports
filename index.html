@@ -371,12 +371,17 @@
       desc:'Enter check-in, check-out and villa — pulls live Cloudbeds rates, taxes and fees into a quote table, and generates a copy/paste email with a direct-booking link. Use this instead of putting a hold in Cloudbeds.' },
 
     { n:20, slug:'unassigned-rooms', group:'Operations', ready:true,
-      title:'Unassigned Rooms',
-      desc:'Future reservations that still need a specific unit assigned in Cloudbeds — shows the room type booked so the front desk can assign a villa before arrival. Refreshes daily; filter by check-in date or room type.',
-      view:'rpt_unassigned_rooms', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
+      title:'Future Reservations',
+      desc:'Every upcoming reservation, with those still needing a specific villa assigned in Cloudbeds flagged in the “Unassigned?” column. Defaults to all future stays; use the “Unassigned only” button to see just the ones the front desk still needs to assign. Refreshes daily; filter by check-in date or room type.',
+      view:'rpt_future_reservations', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
+      boolFiltersExclusive:true,
+      boolFilters:[
+        {field:'is_future', label:'All future reservations'},
+        {field:'is_unassigned', label:'⚠ Unassigned only'}
+      ],
       selectFilter:{field:'room_type', label:'Room type'},
-      cols:[['checkin','Check-in','date'],['guest_name','Guest','strong'],['reservation_id','Res #'],['res_type','Type'],['room_type','Room type needed'],
-            ['nights','Nights'],['days_to_checkin','Days to check-in'],['room_total','Room total','money'],['balance_due','Balance','money'],['booking_date','Booked','date'],['status','Status']] },
+      cols:[['checkin','Check-in','date'],['guest_name','Guest','strong'],['reservation_id','Res #'],['res_type','Type'],['room_type','Room type'],['assigned_unit','Assigned unit'],
+            ['is_unassigned','Unassigned?','warn'],['nights','Nights'],['days_to_checkin','Days to check-in'],['balance_due','Balance','money'],['booking_date','Booked','date'],['status','Status']] },
   ];
 
   // Category → report numbers (order within each list = display order). Numbers stay fixed.
