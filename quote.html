@@ -176,11 +176,6 @@ function render(d){
     : '<span class="avail-no">None available for these dates</span>';
   let rows=d.lines.map(l=>'<tr><td>'+esc(l.label)+'</td><td class="amt">'+money(l.amount)+'</td></tr>').join('');
   rows+='<tr class="total"><td>Total</td><td class="amt">'+money(d.grandTotal)+'</td></tr>';
-  let promo='';
-  if(d.derived && d.derived.length){
-    promo='<div class="promo"><strong>Available promo rates (room only, before tax/fees):</strong> '
-      +d.derived.map(p=>esc(p.name)+' — '+money(p.total)+(p.promoCode?(' <em>('+esc(p.promoCode)+')</em>'):'')).join(' &nbsp;·&nbsp; ')+'</div>';
-  }
   const bookLink=BOOKING_URL+'?checkin='+d.startDate+'&checkout='+d.endDate;
   document.getElementById('out').innerHTML=
     '<div class="card"><h3>'+esc(d.roomTypeName)+' — '+longDate(d.startDate)+' to '+longDate(d.endDate)+'</h3>'
@@ -188,7 +183,7 @@ function render(d){
     +'<div><div class="kpi-t">Avg / night (room)</div><div class="kpi-v">'+money(d.nightlyAvg)+'</div></div>'
     +'<div><div class="kpi-t">Total</div><div class="kpi-v" style="color:var(--green)">'+money(d.grandTotal)+'</div></div>'
     +'<div><div class="kpi-t">Availability</div><div class="kpi-v" style="font-size:16px;padding-top:5px">'+avail+'</div></div></div>'
-    +'<table>'+rows+'</table>'+promo+'</div>'
+    +'<table>'+rows+'</table></div>'
     +'<div class="card"><h3>Copy &amp; paste this reply to the guest</h3>'
     +'<div class="copybar"><button class="btn" onclick="copyEmail()">Copy to clipboard</button><span class="copied" id="copied">Copied ✓</span>'
     +'<a class="btn ghost" href="'+bookLink+'" target="_blank" rel="noopener">Open booking link</a></div>'
@@ -203,7 +198,7 @@ function buildEmail(d, bookLink){
   t+='  '+padRight('TOTAL',42)+money(d.grandTotal)+NL+NL;
   t+='You can book this online here:'+NL+bookLink+NL+NL;
   t+='Just enter '+shortDate(d.startDate)+' to '+shortDate(d.endDate)+' (per above), select the '+d.roomTypeName+', and follow the quick, easy checkout process.'+NL+NL;
-  t+='We look forward to hosting you at White Bay Villas!';
+  t+='We look forward to welcoming you to White Bay Villas on Jost Van Dyke!';
   return t;
 }
 function padRight(s,n){ s=String(s); return s.length>=n ? s+'  ' : s+' '.repeat(n-s.length); }
