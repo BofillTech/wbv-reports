@@ -197,7 +197,7 @@ function buildEmail(d, bookLink){
   d.lines.forEach(l=>{ t+='  '+padRight(l.label,42)+money(l.amount)+NL; });
   t+='  '+padRight('TOTAL',42)+money(d.grandTotal)+NL+NL;
   t+='You can book this online here:'+NL+bookLink+NL+NL;
-  t+='Just enter '+shortDate(d.startDate)+' to '+shortDate(d.endDate)+' (per above), select the '+d.roomTypeName+', and follow the quick, easy checkout process.'+NL+NL;
+  t+='The dates are already pre-entered in the link above — just click it, select the '+d.roomTypeName+', and follow the quick, easy checkout process. You can also see all our rooms and pricing for these dates in that same link.'+NL+NL;
   t+='We look forward to welcoming you to White Bay Villas on Jost Van Dyke!';
   return t;
 }
