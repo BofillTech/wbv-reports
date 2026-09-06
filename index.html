@@ -377,13 +377,30 @@
       selectFilter:{field:'room_type', label:'Room type'},
       cols:[['checkin','Check-in','date'],['guest_name','Guest','strong'],['reservation_id','Res #'],['res_type','Type'],['room_type','Room type needed'],
             ['nights','Nights'],['days_to_checkin','Days to check-in'],['balance_due','Balance','money'],['booking_date','Booked','date'],['status','Status']] },
+
+    { n:21, slug:'hold-conversions', group:'Sales & Revenue Management', ready:true,
+      title:'Confirmation Hold Conversions',
+      desc:'Tracks every confirmation hold and whether it turned into a real booking. Tracking began Sep 6, 2026 and updates hourly — holds created and resolved before then are not included. Use the buttons for converted, still-on-hold, or canceled holds; filter by the date first held.',
+      view:'rpt_hold_conversions', order:'first_seen_hold_at.desc', dateField:'first_seen_hold_at', dateTS:true, dateLabel:'date first held',
+      boolFiltersExclusive:true,
+      boolFilters:[
+        {field:'is_all', label:'All holds'},
+        {field:'is_converted', label:'✅ Converted to booking'},
+        {field:'is_pending', label:'Still on hold'},
+        {field:'is_lost', label:'Canceled'}
+      ],
+      charts:[
+        {type:'bar', title:'Hold outcomes', groupBy:'outcome', agg:'n', fmt:'num'}
+      ],
+      cols:[['first_seen_hold_at','First held','date'],['guest_name','Guest','strong'],['outcome','Outcome'],['status','Status'],['days_on_hold','Days on hold'],
+            ['checkin','Check-in','date'],['checkout','Check-out','date'],['total','Value','money'],['email','Email'],['phone','Phone']] },
   ];
 
   // Category → report numbers (order within each list = display order). Numbers stay fixed.
   const CATS = [
     ['Operations',                  [1,3,5,13,15,8,17,18,19,20]],
     ['Finance & Payments',          [2,4,6,7,12]],
-    ['Sales & Revenue Management',  [9,10,11]],
+    ['Sales & Revenue Management',  [9,10,11,21]],
     ['Executive',                   [14]],
     ['Reputation',                  [16]],
   ];
