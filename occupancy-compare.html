@@ -94,7 +94,7 @@ body.sb-collapsed .sb-title{display:none}
   <div class="presets">
     <button class="btn ghost small" onclick="preset('oct-nov')">Oct–Nov: last yr vs this yr</button>
     <button class="btn ghost small" onclick="preset('dec-jan')">Dec–Jan (holidays): last yr vs this yr</button>
-    <button class="btn ghost small" onclick="preset('yoy')">Shift A → B (+1 year)</button>
+    <button class="btn ghost small" onclick="preset('yoy')">Shift A to B (+1 year)</button>
   </div>
   <div class="form">
     <div class="per a">
@@ -118,14 +118,13 @@ body.sb-collapsed .sb-title{display:none}
 <script>
 const SUPABASE_URL='https://oyxyhxuzufidxfdcwszo.supabase.co';
 const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ';
-// ---- Sidebar (mirrors the hub) -----------------------------------------
 const REPORTS=[
   {n:1,slug:'future-reservations',t:'Future Reservations'},
   {n:2,slug:'financial-revenue',t:'Financial / Revenue'},
   {n:3,slug:'arrivals',t:'Arrivals (all guests)'},
   {n:4,slug:'balance-due',t:'Balance Due'},
   {n:5,slug:'holds',t:'Holds / Confirmation Pending'},
-  {n:6,slug:'deposit-gaps',t:'Reservation → Deposit Reconciliation'},
+  {n:6,slug:'deposit-gaps',t:'Reservation to Deposit Reconciliation'},
   {n:7,slug:'recon-cb-authnet',t:'CB vs Authorize.net Reconciliation'},
   {n:8,slug:'occupancy',t:'Accurate Occupancy'},
   {n:9,slug:'source-of-business',t:'Source of Business'},
@@ -148,18 +147,18 @@ const REP_BY_N={}; REPORTS.forEach(r=>{REP_BY_N[r.n]=r;});
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c];}); }
 function buildSidebar(){
   const sb=document.getElementById('sidebar'); if(!sb) return;
-  let items='<a class="sb-item" href="index.html"><span class="sb-num">•</span><span class="sb-title">All reports</span></a>';
+  let items='<a class="sb-item" href="index.html"><span class="sb-num">&bull;</span><span class="sb-title">All reports</span></a>';
   for(const [cat,nums] of CATS){
     items+='<div class="sb-cat">'+esc(cat)+'</div>';
     for(const n of nums){
       const r=REP_BY_N[n]; if(!r) continue;
       const href=r.page?r.page:'index.html#/'+r.slug;
       const active=r.slug==='occupancy-compare'?' active':'';
-      items+='<a class="sb-item'+active+'" href="'+href+'" title="'+esc(r.n+' · '+r.t)+'">'
+      items+='<a class="sb-item'+active+'" href="'+href+'" title="'+esc(r.n+' - '+r.t)+'">'
            +'<span class="sb-num">'+r.n+'</span><span class="sb-title">'+esc(r.t)+'</span></a>';
     }
   }
-  sb.innerHTML='<div class="sb-head"><button class="sb-toggle" onclick="toggleSidebar()" title="Collapse / expand">☰</button>'
+  sb.innerHTML='<div class="sb-head"><button class="sb-toggle" onclick="toggleSidebar()" title="Collapse / expand">&#9776;</button>'
     +'<span class="sb-h-label">Reports</span></div>'+items;
 }
 window.toggleSidebar=function(){ document.body.classList.toggle('sb-collapsed'); try{ localStorage.setItem('wbv_sb', document.body.classList.contains('sb-collapsed')?'1':'0'); }catch(e){} };
@@ -196,248 +195,17 @@ async function getRange(s,e){
   if(!r.ok) throw new Error('Data service error ('+r.status+')');
   return await r.json();
 }
-const pct=v=>v==null?'—':(Number(v).toFixed(1)+'%');
+const pct=v=>v==null?'-':(Number(v).toFixed(1)+'%');
+const money=v=>v==null?'-':('$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:0}));
 const fmtD=s=>{const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);const d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(s);return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});};
 let charts=[];
-const money=v=>v==null?'-':'
-  const a1=document.getElementById('a1').value,a2=document.getElementById('a2').value;
-  const b1=document.getElementById('b1').value,b2=document.getElementById('b2').value;
-  const out=document.getElementById('out');
-  if(!a1||!a2||!b1||!b2){ out.innerHTML='<p class="err">Please set start and end dates for both periods.</p>'; return; }
-  if(a2<a1||b2<b1){ out.innerHTML='<p class="err">End date must be after start date.</p>'; return; }
-  const btn=document.getElementById('go'); btn.disabled=true; btn.textContent='Comparing…';
-  out.innerHTML='<p class="sub">Crunching occupancy…</p>';
-  let A,B;
-  try{ [A,B]=await Promise.all([getRange(a1,a2),getRange(b1,b2)]); }
-  catch(e){ out.innerHTML='<p class="err">'+esc(e.message||e)+'</p>'; btn.disabled=false; btn.textContent='Compare'; return; }
-  btn.disabled=false; btn.textContent='Compare';
-  render(A,B);
-}
 
-function delta(a,b,unit,goodUp){
-  if(a==null||b==null) return '';
-  const d=b-a; const cls=(goodUp?(d>=0):(d<=0))?'up':'down';
-  const sign=d>0?'+':''; return '<div class="delta '+cls+'">'+sign+d.toFixed(unit==='%'?1:0)+(unit||'')+' vs A</div>';
-}
-
-function render(A,B){
-  const sA=A.summary,sB=B.summary;
-  const kpi=(t,va,vb,unit,goodUp)=>'<div class="kpi"><div class="t">'+t+'</div><div class="vals"><span class="va">'+va+'</span><span class="vb">'+vb+'</span></div>'+delta(parseFloat(va),parseFloat(vb),unit,goodUp)+'</div>';
-  let html='<div class="legend"><span><span class="sw" style="background:var(--accent)"></span>A · '+fmtD(A.start)+' – '+fmtD(A.end)+' ('+A.nights_in_range+' nights)</span>'
-    +'<span><span class="sw" style="background:var(--accent2)"></span>B · '+fmtD(B.start)+' – '+fmtD(B.end)+' ('+B.nights_in_range+' nights)</span></div>';
-  html+='<div class="kpis">'
-    +kpi('Avg occupancy', pct(sA.avg_occupancy_pct), pct(sB.avg_occupancy_pct),'%',true)
-    +kpi('Occupied room-nights', sA.occupied_room_nights, sB.occupied_room_nights,'',true)
-    +kpi('Reservations', sA.reservations, sB.reservations,'',true)
-    +kpi('Avg length of stay', (sA.avg_los??'—')+' n', (sB.avg_los??'—')+' n','',true)
-    +kpiMoney('Total revenue', sA.total_revenue, sB.total_revenue)
-    +kpiMoney('Avg rate / night (incl. tax/fees)', sA.adr, sB.adr)
-    +'</div>';
-  html+='<div class="card"><h3>Occupancy % by night</h3><div class="cs">Aligned by day-of-period so the same point in each range lines up. Hover for the dates.</div><div class="chartbox"><canvas id="cTrend"></canvas></div></div>';
-  html+='<div class="card"><h3>Occupancy % by room type</h3><div class="cs">Share of each room type’s nights that were sold. “Unknown” = older imported bookings with no room-type tag.</div><div class="chartbox"><canvas id="cType"></canvas></div></div>';
-  html+='<div class="card"><h3>Length of stay</h3><div class="cs">Number of reservations by nights booked (by check-in date within each period).</div><div class="chartbox"><canvas id="cLos"></canvas></div></div>';
-  html+='<div class="card"><h3>Calendar heatmap</h3><div class="cs">Each day shaded by occupancy — darker green = fuller.</div>'
-    +'<div class="heat-scale">0%<span class="bar"></span>100%</div>'
-    +'<div class="cals"><div class="calcol"><h4 class="a">Period A</h4>'+calHTML(A)+'</div><div class="calcol"><h4 class="b">Period B</h4>'+calHTML(B)+'</div></div></div>';
-  document.getElementById('out').innerHTML=html;
-  charts.forEach(c=>{try{c.destroy()}catch(e){}}); charts=[];
-  drawTrend(A,B); drawType(A,B); drawLos(A,B);
-}
-
-function heatColor(p){
-  if(p==null) return '#f1f5f9';
-  const t=Math.max(0,Math.min(100,p))/100;
-  const c0=[241,245,249], c1=[20,83,45];
-  const r=Math.round(c0[0]+(c1[0]-c0[0])*t), g=Math.round(c0[1]+(c1[1]-c0[1])*t), b=Math.round(c0[2]+(c1[2]-c0[2])*t);
-  return 'rgb('+r+','+g+','+b+')';
-}
-function calHTML(P){
-  const byMonth={};
-  P.nights.forEach(n=>{ const m=n.d.slice(0,7); (byMonth[m]=byMonth[m]||[]).push(n); });
-  const dows=['S','M','T','W','T','F','S'];
-  let out='';
-  Object.keys(byMonth).sort().forEach(m=>{
-    const rows=byMonth[m]; const map={}; rows.forEach(n=>map[n.d]=n);
-    const [yy,mm]=m.split('-').map(Number);
-    const first=new Date(yy,mm-1,1), last=new Date(yy,mm,0);
-    const title=first.toLocaleDateString(undefined,{month:'long',year:'numeric'});
-    let cells=dows.map(d=>'<div class="dow">'+d+'</div>').join('');
-    for(let i=0;i<first.getDay();i++) cells+='<div class="cell empty"></div>';
-    for(let day=1;day<=last.getDate();day++){
-      const ds=yy+'-'+String(mm).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-      const n=map[ds];
-      if(!n){ cells+='<div class="cell empty"></div>'; continue; }
-      const light=(n.pct!=null&&n.pct>55)?'#eafbf1':'#0b3b2e';
-      cells+='<div class="cell" style="background:'+heatColor(n.pct)+';color:'+light+'" title="'+ds+' · '+n.occ+'/'+n.cap+' villas · '+(n.pct==null?'n/a':n.pct+'%')+'"><span class="dn">'+day+'</span><span class="pc">'+(n.pct==null?'-':Math.round(n.pct))+'</span></div>';
-    }
-    out+='<div class="month"><div class="mt">'+title+'</div><div class="cal">'+cells+'</div></div>';
-  });
-  return out;
-}
-
-function drawTrend(A,B){
-  const n=Math.max(A.nights.length,B.nights.length);
-  const labels=[]; const da=[],db=[],dateA=[],dateB=[];
-  for(let i=0;i<n;i++){ labels.push('Day '+(i+1));
-    const a=A.nights[i], b=B.nights[i];
-    da.push(a?a.pct:null); db.push(b?b.pct:null);
-    dateA.push(a?a.d:''); dateB.push(b?b.d:''); }
-  charts.push(new Chart(document.getElementById('cTrend'),{type:'line',
-    data:{labels,datasets:[
-      {label:'A',data:da,borderColor:'#0284c7',backgroundColor:'#0284c7',tension:.25,pointRadius:0,borderWidth:2},
-      {label:'B',data:db,borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.25,pointRadius:0,borderWidth:2}]},
-    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}},
-      plugins:{legend:{display:false},tooltip:{callbacks:{title:(it)=>'Day '+(it[0].dataIndex+1),
-        label:(c)=>{const i=c.dataIndex; if(c.datasetIndex===0) return 'A '+ (dateA[i]||'') +': '+(da[i]==null?'n/a':da[i]+'%'); return 'B '+(dateB[i]||'')+': '+(db[i]==null?'n/a':db[i]+'%');}}}}}}));
-}
-function drawType(A,B){
-  const types=[...new Set([...A.by_type,...B.by_type].map(x=>x.room_type))].sort();
-  const ma={}, mb={}; A.by_type.forEach(x=>ma[x.room_type]=x.pct); B.by_type.forEach(x=>mb[x.room_type]=x.pct);
-  charts.push(new Chart(document.getElementById('cType'),{type:'bar',
-    data:{labels:types,datasets:[
-      {label:'A',data:types.map(t=>ma[t]??0),backgroundColor:'#0284c7'},
-      {label:'B',data:types.map(t=>mb[t]??0),backgroundColor:'#f59e0b'}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}},
-      plugins:{legend:{display:false}}}}));
-}
-function drawLos(A,B){
-  const order=['1','2-3','4-6','7-13','14+'];
-  const ma={}, mb={}; A.los.forEach(x=>ma[x.bucket]=x.n); B.los.forEach(x=>mb[x.bucket]=x.n);
-  charts.push(new Chart(document.getElementById('cLos'),{type:'bar',
-    data:{labels:order.map(o=>o+' nights'),datasets:[
-      {label:'A',data:order.map(o=>ma[o]??0),backgroundColor:'#0284c7'},
-      {label:'B',data:order.map(o=>mb[o]??0),backgroundColor:'#f59e0b'}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      scales:{y:{beginAtZero:true,ticks:{precision:0}}},
-      plugins:{legend:{display:false}}}}));
-}
-</script>
-</body>
-</html>
-+Number(v).toLocaleString(undefined,{maximumFractionDigits:0});
 function kpiMoney(t,a,b){
-  a=a==null?null:Number(a); b=b==null?null:Number(b);
+  a=(a==null)?null:Number(a); b=(b==null)?null:Number(b);
   let dl='';
-  if(a!=null&&b!=null){ const d=b-a; const cls=d>=0?'up':'down'; const s=d>=0?'+':'-';
+  if(a!=null&&b!=null){ const d=b-a; const cls=(d>=0)?'up':'down'; const s=(d>=0)?'+':'-';
     const p=a?(' ('+s+Math.abs(d/a*100).toFixed(0)+'%)'):'';
-    dl='<div class="delta '+cls+'">'+s+'
-  const a1=document.getElementById('a1').value,a2=document.getElementById('a2').value;
-  const b1=document.getElementById('b1').value,b2=document.getElementById('b2').value;
-  const out=document.getElementById('out');
-  if(!a1||!a2||!b1||!b2){ out.innerHTML='<p class="err">Please set start and end dates for both periods.</p>'; return; }
-  if(a2<a1||b2<b1){ out.innerHTML='<p class="err">End date must be after start date.</p>'; return; }
-  const btn=document.getElementById('go'); btn.disabled=true; btn.textContent='Comparing…';
-  out.innerHTML='<p class="sub">Crunching occupancy…</p>';
-  let A,B;
-  try{ [A,B]=await Promise.all([getRange(a1,a2),getRange(b1,b2)]); }
-  catch(e){ out.innerHTML='<p class="err">'+esc(e.message||e)+'</p>'; btn.disabled=false; btn.textContent='Compare'; return; }
-  btn.disabled=false; btn.textContent='Compare';
-  render(A,B);
-}
-
-function delta(a,b,unit,goodUp){
-  if(a==null||b==null) return '';
-  const d=b-a; const cls=(goodUp?(d>=0):(d<=0))?'up':'down';
-  const sign=d>0?'+':''; return '<div class="delta '+cls+'">'+sign+d.toFixed(unit==='%'?1:0)+(unit||'')+' vs A</div>';
-}
-
-function render(A,B){
-  const sA=A.summary,sB=B.summary;
-  const kpi=(t,va,vb,unit,goodUp)=>'<div class="kpi"><div class="t">'+t+'</div><div class="vals"><span class="va">'+va+'</span><span class="vb">'+vb+'</span></div>'+delta(parseFloat(va),parseFloat(vb),unit,goodUp)+'</div>';
-  let html='<div class="legend"><span><span class="sw" style="background:var(--accent)"></span>A · '+fmtD(A.start)+' – '+fmtD(A.end)+' ('+A.nights_in_range+' nights)</span>'
-    +'<span><span class="sw" style="background:var(--accent2)"></span>B · '+fmtD(B.start)+' – '+fmtD(B.end)+' ('+B.nights_in_range+' nights)</span></div>';
-  html+='<div class="kpis">'
-    +kpi('Avg occupancy', pct(sA.avg_occupancy_pct), pct(sB.avg_occupancy_pct),'%',true)
-    +kpi('Occupied room-nights', sA.occupied_room_nights, sB.occupied_room_nights,'',true)
-    +kpi('Reservations', sA.reservations, sB.reservations,'',true)
-    +kpi('Avg length of stay', (sA.avg_los??'—')+' n', (sB.avg_los??'—')+' n','',true)
-    +'</div>';
-  html+='<div class="card"><h3>Occupancy % by night</h3><div class="cs">Aligned by day-of-period so the same point in each range lines up. Hover for the dates.</div><div class="chartbox"><canvas id="cTrend"></canvas></div></div>';
-  html+='<div class="card"><h3>Occupancy % by room type</h3><div class="cs">Share of each room type’s nights that were sold. “Unknown” = older imported bookings with no room-type tag.</div><div class="chartbox"><canvas id="cType"></canvas></div></div>';
-  html+='<div class="card"><h3>Length of stay</h3><div class="cs">Number of reservations by nights booked (by check-in date within each period).</div><div class="chartbox"><canvas id="cLos"></canvas></div></div>';
-  html+='<div class="card"><h3>Calendar heatmap</h3><div class="cs">Each day shaded by occupancy — darker green = fuller.</div>'
-    +'<div class="heat-scale">0%<span class="bar"></span>100%</div>'
-    +'<div class="cals"><div class="calcol"><h4 class="a">Period A</h4>'+calHTML(A)+'</div><div class="calcol"><h4 class="b">Period B</h4>'+calHTML(B)+'</div></div></div>';
-  document.getElementById('out').innerHTML=html;
-  charts.forEach(c=>{try{c.destroy()}catch(e){}}); charts=[];
-  drawTrend(A,B); drawType(A,B); drawLos(A,B);
-}
-
-function heatColor(p){
-  if(p==null) return '#f1f5f9';
-  const t=Math.max(0,Math.min(100,p))/100;
-  const c0=[241,245,249], c1=[20,83,45];
-  const r=Math.round(c0[0]+(c1[0]-c0[0])*t), g=Math.round(c0[1]+(c1[1]-c0[1])*t), b=Math.round(c0[2]+(c1[2]-c0[2])*t);
-  return 'rgb('+r+','+g+','+b+')';
-}
-function calHTML(P){
-  const byMonth={};
-  P.nights.forEach(n=>{ const m=n.d.slice(0,7); (byMonth[m]=byMonth[m]||[]).push(n); });
-  const dows=['S','M','T','W','T','F','S'];
-  let out='';
-  Object.keys(byMonth).sort().forEach(m=>{
-    const rows=byMonth[m]; const map={}; rows.forEach(n=>map[n.d]=n);
-    const [yy,mm]=m.split('-').map(Number);
-    const first=new Date(yy,mm-1,1), last=new Date(yy,mm,0);
-    const title=first.toLocaleDateString(undefined,{month:'long',year:'numeric'});
-    let cells=dows.map(d=>'<div class="dow">'+d+'</div>').join('');
-    for(let i=0;i<first.getDay();i++) cells+='<div class="cell empty"></div>';
-    for(let day=1;day<=last.getDate();day++){
-      const ds=yy+'-'+String(mm).padStart(2,'0')+'-'+String(day).padStart(2,'0');
-      const n=map[ds];
-      if(!n){ cells+='<div class="cell empty"></div>'; continue; }
-      const light=(n.pct!=null&&n.pct>55)?'#eafbf1':'#0b3b2e';
-      cells+='<div class="cell" style="background:'+heatColor(n.pct)+';color:'+light+'" title="'+ds+' · '+n.occ+'/'+n.cap+' villas · '+(n.pct==null?'n/a':n.pct+'%')+'"><span class="dn">'+day+'</span><span class="pc">'+(n.pct==null?'-':Math.round(n.pct))+'</span></div>';
-    }
-    out+='<div class="month"><div class="mt">'+title+'</div><div class="cal">'+cells+'</div></div>';
-  });
-  return out;
-}
-
-function drawTrend(A,B){
-  const n=Math.max(A.nights.length,B.nights.length);
-  const labels=[]; const da=[],db=[],dateA=[],dateB=[];
-  for(let i=0;i<n;i++){ labels.push('Day '+(i+1));
-    const a=A.nights[i], b=B.nights[i];
-    da.push(a?a.pct:null); db.push(b?b.pct:null);
-    dateA.push(a?a.d:''); dateB.push(b?b.d:''); }
-  charts.push(new Chart(document.getElementById('cTrend'),{type:'line',
-    data:{labels,datasets:[
-      {label:'A',data:da,borderColor:'#0284c7',backgroundColor:'#0284c7',tension:.25,pointRadius:0,borderWidth:2},
-      {label:'B',data:db,borderColor:'#f59e0b',backgroundColor:'#f59e0b',tension:.25,pointRadius:0,borderWidth:2}]},
-    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
-      scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}},
-      plugins:{legend:{display:false},tooltip:{callbacks:{title:(it)=>'Day '+(it[0].dataIndex+1),
-        label:(c)=>{const i=c.dataIndex; if(c.datasetIndex===0) return 'A '+ (dateA[i]||'') +': '+(da[i]==null?'n/a':da[i]+'%'); return 'B '+(dateB[i]||'')+': '+(db[i]==null?'n/a':db[i]+'%');}}}}}}));
-}
-function drawType(A,B){
-  const types=[...new Set([...A.by_type,...B.by_type].map(x=>x.room_type))].sort();
-  const ma={}, mb={}; A.by_type.forEach(x=>ma[x.room_type]=x.pct); B.by_type.forEach(x=>mb[x.room_type]=x.pct);
-  charts.push(new Chart(document.getElementById('cType'),{type:'bar',
-    data:{labels:types,datasets:[
-      {label:'A',data:types.map(t=>ma[t]??0),backgroundColor:'#0284c7'},
-      {label:'B',data:types.map(t=>mb[t]??0),backgroundColor:'#f59e0b'}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}},
-      plugins:{legend:{display:false}}}}));
-}
-function drawLos(A,B){
-  const order=['1','2-3','4-6','7-13','14+'];
-  const ma={}, mb={}; A.los.forEach(x=>ma[x.bucket]=x.n); B.los.forEach(x=>mb[x.bucket]=x.n);
-  charts.push(new Chart(document.getElementById('cLos'),{type:'bar',
-    data:{labels:order.map(o=>o+' nights'),datasets:[
-      {label:'A',data:order.map(o=>ma[o]??0),backgroundColor:'#0284c7'},
-      {label:'B',data:order.map(o=>mb[o]??0),backgroundColor:'#f59e0b'}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      scales:{y:{beginAtZero:true,ticks:{precision:0}}},
-      plugins:{legend:{display:false}}}}));
-}
-</script>
-</body>
-</html>
-+Math.abs(d).toLocaleString(undefined,{maximumFractionDigits:0})+p+' vs A</div>'; }
+    dl='<div class="delta '+cls+'">'+s+money(Math.abs(d))+p+' vs A</div>'; }
   return '<div class="kpi"><div class="t">'+t+'</div><div class="vals"><span class="va">'+money(a)+'</span><span class="vb">'+money(b)+'</span></div>'+dl+'</div>';
 }
 
@@ -447,8 +215,8 @@ async function run(){
   const out=document.getElementById('out');
   if(!a1||!a2||!b1||!b2){ out.innerHTML='<p class="err">Please set start and end dates for both periods.</p>'; return; }
   if(a2<a1||b2<b1){ out.innerHTML='<p class="err">End date must be after start date.</p>'; return; }
-  const btn=document.getElementById('go'); btn.disabled=true; btn.textContent='Comparing…';
-  out.innerHTML='<p class="sub">Crunching occupancy…</p>';
+  const btn=document.getElementById('go'); btn.disabled=true; btn.textContent='Comparing...';
+  out.innerHTML='<p class="sub">Crunching occupancy...</p>';
   let A,B;
   try{ [A,B]=await Promise.all([getRange(a1,a2),getRange(b1,b2)]); }
   catch(e){ out.innerHTML='<p class="err">'+esc(e.message||e)+'</p>'; btn.disabled=false; btn.textContent='Compare'; return; }
@@ -465,18 +233,20 @@ function delta(a,b,unit,goodUp){
 function render(A,B){
   const sA=A.summary,sB=B.summary;
   const kpi=(t,va,vb,unit,goodUp)=>'<div class="kpi"><div class="t">'+t+'</div><div class="vals"><span class="va">'+va+'</span><span class="vb">'+vb+'</span></div>'+delta(parseFloat(va),parseFloat(vb),unit,goodUp)+'</div>';
-  let html='<div class="legend"><span><span class="sw" style="background:var(--accent)"></span>A · '+fmtD(A.start)+' – '+fmtD(A.end)+' ('+A.nights_in_range+' nights)</span>'
-    +'<span><span class="sw" style="background:var(--accent2)"></span>B · '+fmtD(B.start)+' – '+fmtD(B.end)+' ('+B.nights_in_range+' nights)</span></div>';
+  let html='<div class="legend"><span><span class="sw" style="background:var(--accent)"></span>A: '+fmtD(A.start)+' to '+fmtD(A.end)+' ('+A.nights_in_range+' nights)</span>'
+    +'<span><span class="sw" style="background:var(--accent2)"></span>B: '+fmtD(B.start)+' to '+fmtD(B.end)+' ('+B.nights_in_range+' nights)</span></div>';
   html+='<div class="kpis">'
     +kpi('Avg occupancy', pct(sA.avg_occupancy_pct), pct(sB.avg_occupancy_pct),'%',true)
+    +kpiMoney('Total revenue', sA.total_revenue, sB.total_revenue)
+    +kpiMoney('Avg rate / night (incl tax/fees)', sA.adr, sB.adr)
     +kpi('Occupied room-nights', sA.occupied_room_nights, sB.occupied_room_nights,'',true)
     +kpi('Reservations', sA.reservations, sB.reservations,'',true)
-    +kpi('Avg length of stay', (sA.avg_los??'—')+' n', (sB.avg_los??'—')+' n','',true)
+    +kpi('Avg length of stay', (sA.avg_los==null?'-':sA.avg_los)+' n', (sB.avg_los==null?'-':sB.avg_los)+' n','',true)
     +'</div>';
   html+='<div class="card"><h3>Occupancy % by night</h3><div class="cs">Aligned by day-of-period so the same point in each range lines up. Hover for the dates.</div><div class="chartbox"><canvas id="cTrend"></canvas></div></div>';
-  html+='<div class="card"><h3>Occupancy % by room type</h3><div class="cs">Share of each room type’s nights that were sold. “Unknown” = older imported bookings with no room-type tag.</div><div class="chartbox"><canvas id="cType"></canvas></div></div>';
+  html+='<div class="card"><h3>Occupancy % by room type</h3><div class="cs">Share of each room type nights that were sold. Unknown = older imported bookings with no room-type tag.</div><div class="chartbox"><canvas id="cType"></canvas></div></div>';
   html+='<div class="card"><h3>Length of stay</h3><div class="cs">Number of reservations by nights booked (by check-in date within each period).</div><div class="chartbox"><canvas id="cLos"></canvas></div></div>';
-  html+='<div class="card"><h3>Calendar heatmap</h3><div class="cs">Each day shaded by occupancy — darker green = fuller.</div>'
+  html+='<div class="card"><h3>Calendar heatmap</h3><div class="cs">Each day shaded by occupancy - darker green = fuller.</div>'
     +'<div class="heat-scale">0%<span class="bar"></span>100%</div>'
     +'<div class="cals"><div class="calcol"><h4 class="a">Period A</h4>'+calHTML(A)+'</div><div class="calcol"><h4 class="b">Period B</h4>'+calHTML(B)+'</div></div></div>';
   document.getElementById('out').innerHTML=html;
@@ -498,7 +268,7 @@ function calHTML(P){
   let out='';
   Object.keys(byMonth).sort().forEach(m=>{
     const rows=byMonth[m]; const map={}; rows.forEach(n=>map[n.d]=n);
-    const [yy,mm]=m.split('-').map(Number);
+    const parts=m.split('-'); const yy=Number(parts[0]), mm=Number(parts[1]);
     const first=new Date(yy,mm-1,1), last=new Date(yy,mm,0);
     const title=first.toLocaleDateString(undefined,{month:'long',year:'numeric'});
     let cells=dows.map(d=>'<div class="dow">'+d+'</div>').join('');
@@ -507,8 +277,8 @@ function calHTML(P){
       const ds=yy+'-'+String(mm).padStart(2,'0')+'-'+String(day).padStart(2,'0');
       const n=map[ds];
       if(!n){ cells+='<div class="cell empty"></div>'; continue; }
-      const light=(n.pct!=null&&n.pct>55)?'#eafbf1':'#0b3b2e';
-      cells+='<div class="cell" style="background:'+heatColor(n.pct)+';color:'+light+'" title="'+ds+' · '+n.occ+'/'+n.cap+' villas · '+(n.pct==null?'n/a':n.pct+'%')+'"><span class="dn">'+day+'</span><span class="pc">'+(n.pct==null?'-':Math.round(n.pct))+'</span></div>';
+      const lite=(n.pct!=null&&n.pct>55)?'#eafbf1':'#0b3b2e';
+      cells+='<div class="cell" style="background:'+heatColor(n.pct)+';color:'+lite+'" title="'+ds+': '+n.occ+'/'+n.cap+' villas, '+(n.pct==null?'n/a':n.pct+'%')+'"><span class="dn">'+day+'</span><span class="pc">'+(n.pct==null?'-':Math.round(n.pct))+'</span></div>';
     }
     out+='<div class="month"><div class="mt">'+title+'</div><div class="cal">'+cells+'</div></div>';
   });
@@ -529,15 +299,15 @@ function drawTrend(A,B){
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},
       scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}},
       plugins:{legend:{display:false},tooltip:{callbacks:{title:(it)=>'Day '+(it[0].dataIndex+1),
-        label:(c)=>{const i=c.dataIndex; if(c.datasetIndex===0) return 'A '+ (dateA[i]||'') +': '+(da[i]==null?'n/a':da[i]+'%'); return 'B '+(dateB[i]||'')+': '+(db[i]==null?'n/a':db[i]+'%');}}}}}}));
+        label:(c)=>{const i=c.dataIndex; if(c.datasetIndex===0) return 'A '+(dateA[i]||'')+': '+(da[i]==null?'n/a':da[i]+'%'); return 'B '+(dateB[i]||'')+': '+(db[i]==null?'n/a':db[i]+'%');}}}}}}));
 }
 function drawType(A,B){
   const types=[...new Set([...A.by_type,...B.by_type].map(x=>x.room_type))].sort();
   const ma={}, mb={}; A.by_type.forEach(x=>ma[x.room_type]=x.pct); B.by_type.forEach(x=>mb[x.room_type]=x.pct);
   charts.push(new Chart(document.getElementById('cType'),{type:'bar',
     data:{labels:types,datasets:[
-      {label:'A',data:types.map(t=>ma[t]??0),backgroundColor:'#0284c7'},
-      {label:'B',data:types.map(t=>mb[t]??0),backgroundColor:'#f59e0b'}]},
+      {label:'A',data:types.map(t=>ma[t]==null?0:ma[t]),backgroundColor:'#0284c7'},
+      {label:'B',data:types.map(t=>mb[t]==null?0:mb[t]),backgroundColor:'#f59e0b'}]},
     options:{responsive:true,maintainAspectRatio:false,
       scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%'}}},
       plugins:{legend:{display:false}}}}));
@@ -547,8 +317,8 @@ function drawLos(A,B){
   const ma={}, mb={}; A.los.forEach(x=>ma[x.bucket]=x.n); B.los.forEach(x=>mb[x.bucket]=x.n);
   charts.push(new Chart(document.getElementById('cLos'),{type:'bar',
     data:{labels:order.map(o=>o+' nights'),datasets:[
-      {label:'A',data:order.map(o=>ma[o]??0),backgroundColor:'#0284c7'},
-      {label:'B',data:order.map(o=>mb[o]??0),backgroundColor:'#f59e0b'}]},
+      {label:'A',data:order.map(o=>ma[o]==null?0:ma[o]),backgroundColor:'#0284c7'},
+      {label:'B',data:order.map(o=>mb[o]==null?0:mb[o]),backgroundColor:'#f59e0b'}]},
     options:{responsive:true,maintainAspectRatio:false,
       scales:{y:{beginAtZero:true,ticks:{precision:0}}},
       plugins:{legend:{display:false}}}}));
