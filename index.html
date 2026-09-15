@@ -394,13 +394,17 @@
       ],
       cols:[['first_seen_hold_at','First held','date'],['guest_name','Guest','strong'],['outcome','Outcome'],['status','Status'],['days_on_hold','Days on hold'],
             ['checkin','Check-in','date'],['checkout','Check-out','date'],['total','Value','money'],['email','Email'],['phone','Phone']] },
+
+    { n:22, slug:'occupancy-compare', page:'occupancy-compare.html', group:'Sales & Revenue Management', ready:true,
+      title:'Occupancy Comparison',
+      desc:'Compare occupancy between two date ranges - e.g. this Oct-Nov vs last year - with trend, room-type and length-of-stay charts plus side-by-side calendar heatmaps. Pick any two periods.' },
   ];
 
   // Category → report numbers (order within each list = display order). Numbers stay fixed.
   const CATS = [
     ['Operations',                  [1,3,5,13,15,8,17,18,19,20]],
     ['Finance & Payments',          [2,4,6,7,12]],
-    ['Sales & Revenue Management',  [9,10,11,21]],
+    ['Sales & Revenue Management',  [9,10,11,21,22]],
     ['Executive',                   [14]],
     ['Reputation',                  [16]],
   ];
