@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>White Bay Villas — Repeat Customers</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{--bg:#ffffff;--panel:#ffffff;--line:#e4e8ee;--txt:#1b2430;--muted:#64748b;--accent:#0284c7;--accent2:#f59e0b;--green:#15803d;--red:#ef4444;--sbw:232px;--sbc:54px;}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);padding-left:var(--sbw);transition:padding-left .15s;font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 26px}
+header{padding:20px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:40;background:var(--bg);box-shadow:0 2px 8px rgba(0,0,0,.10)}
+header h1{font-size:18px;margin:0;font-weight:650}
+.sub{color:var(--muted);font-size:13px}
+.btn{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:9px 16px;font-weight:640;font-size:14px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+#sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--sbw);background:#f3f5f8;border-right:1px solid var(--line);overflow-y:auto;z-index:45;transition:width .15s}
+body.sb-collapsed{padding-left:var(--sbc)}
+body.sb-collapsed #sidebar{width:var(--sbc)}
+.sb-head{display:flex;align-items:center;gap:8px;padding:16px 12px 10px}
+.sb-toggle{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:8px;width:32px;height:32px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:15px;padding:0;flex:none}
+.sb-toggle:hover{color:var(--accent);border-color:var(--accent)}
+.sb-h-label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;white-space:nowrap}
+body.sb-collapsed .sb-h-label{display:none}
+.sb-cat{padding:14px 14px 4px;color:var(--muted);font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;white-space:nowrap;overflow:hidden}
+body.sb-collapsed .sb-cat{visibility:hidden;height:10px;padding:6px 0 0}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 14px;color:var(--txt);font-size:13px;border-left:3px solid transparent;white-space:nowrap;overflow:hidden;text-decoration:none}
+.sb-item:hover{background:#eef3f8}
+.sb-item.active{background:#eef3f8;border-left-color:var(--accent);color:var(--accent)}
+.sb-num{color:var(--muted);font-size:11px;min-width:18px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+.sb-item.active .sb-num{color:var(--accent)}
+.sb-title{overflow:hidden;text-overflow:ellipsis}
+body.sb-collapsed .sb-title{display:none}
+@media(max-width:820px){ body{padding-left:var(--sbc)} #sidebar{width:var(--sbc)} .sb-h-label,.sb-title{display:none} }
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:20px}
+.kpi{border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.kpi .t{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px}
+.kpi .v{font-size:24px;font-weight:700}
+.kpi .s{color:var(--muted);font-size:12.5px;margin-top:4px}
+.cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:22px}
+@media(max-width:900px){.cards{grid-template-columns:1fr}}
+.card{border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.card h3{margin:0 0 10px;font-size:14px}
+.cbox{position:relative;height:230px}
+.tbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.tbar input{border:1px solid var(--line);border-radius:8px;padding:8px 11px;font-size:14px;min-width:220px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+th{cursor:pointer;user-select:none;white-space:nowrap;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.02em}
+th:hover{color:var(--accent)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl-wrap{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:70vh}
+.err{color:var(--red);font-weight:600}
+.gate{position:fixed;inset:0;background:#f6f8fb;display:flex;align-items:center;justify-content:center}
+.gate .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;width:320px;text-align:center}
+.gate input{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:14px 0}
+.gate button{width:100%;padding:10px;background:var(--accent);color:#fff;border:0;border-radius:8px;font-weight:600;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="gate" id="gate"><div class="box"><strong>White Bay Villas</strong><div class="sub">Repeat Customers</div><input id="code" placeholder="Access code" type="password" onkeydown="if(event.key==='Enter')checkGate()"/><button onclick="checkGate()">Enter</button></div></div>
+<aside id="sidebar" aria-label="Reports navigation"></aside>
+<header>
+  <div><h1>23. Repeat Customers</h1><div class="sub">All-time loyalty view — repeat vs new guests, stays, nights & revenue</div></div>
+  <div><a class="btn ghost" href="index.html">All reports</a> <button class="btn" onclick="load()">Refresh</button></div>
+</header>
+<div class="wrap" id="app" style="display:none">
+  <div id="out"><p class="sub">Loading…</p></div>
+</div>
+<script>
+const SUPABASE_URL='https://oyxyhxuzufidxfdcwszo.supabase.co';
+const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ';
+const REPORTS=[
+  {n:1,slug:'future-reservations',t:'Future Reservations'},
+  {n:2,slug:'financial-revenue',t:'Financial / Revenue'},
+  {n:3,slug:'arrivals',t:'Arrivals (all guests)'},
+  {n:4,slug:'balance-due',t:'Balance Due'},
+  {n:5,slug:'holds',t:'Holds / Confirmation Pending'},
+  {n:6,slug:'deposit-gaps',t:'Reservation to Deposit Reconciliation'},
+  {n:7,slug:'recon-cb-authnet',t:'CB vs Authorize.net Reconciliation'},
+  {n:8,slug:'occupancy',t:'Accurate Occupancy'},
+  {n:9,slug:'source-of-business',t:'Source of Business'},
+  {n:10,slug:'rate-discounting',t:'Rate Discounting'},
+  {n:11,slug:'revenue-by-room-type',t:'Revenue by Room Type'},
+  {n:12,slug:'payment-processing',t:'Payment Processing'},
+  {n:13,slug:'in-house',t:'Guests In House'},
+  {n:14,slug:'monthly-report',t:'Monthly Executive Report',page:'monthly.html'},
+  {n:15,slug:'checked-out',t:'Recently Checked Out'},
+  {n:16,slug:'reviews',t:'Reviews',page:'reviews.html'},
+  {n:17,slug:'imported-reservations',t:'Imported Reservations'},
+  {n:18,slug:'last-minute',t:'Last-Minute Reservations'},
+  {n:19,slug:'quote',t:'Quote Tool',page:'quote.html'},
+  {n:20,slug:'unassigned-rooms',t:'Unassigned Reservations'},
+  {n:21,slug:'hold-conversions',t:'Confirmation Hold Conversions'},
+  {n:22,slug:'occupancy-compare',t:'Occupancy Comparison',page:'occupancy-compare.html'},
+  {n:23,slug:'repeat-customers',t:'Repeat Customers',page:'repeat-customers.html'}
+];
+const CATS=[['Operations',[1,3,5,13,15,8,17,18,19,20]],['Finance & Payments',[2,4,6,7,12]],['Sales & Revenue Management',[9,10,11,21,22,23]],['Executive',[14]],['Reputation',[16]]];
+const REP_BY_N={}; REPORTS.forEach(r=>{REP_BY_N[r.n]=r;});
+function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c];}); }
+function buildSidebar(){
+  const sb=document.getElementById('sidebar'); if(!sb) return;
+  let items='<a class="sb-item" href="index.html"><span class="sb-num">&bull;</span><span class="sb-title">All reports</span></a>';
+  for(const [cat,nums] of CATS){
+    items+='<div class="sb-cat">'+esc(cat)+'</div>';
+    for(const n of nums){
+      const r=REP_BY_N[n]; if(!r) continue;
+      const href=r.page?r.page:'index.html#/'+r.slug;
+      const active=r.slug==='repeat-customers'?' active':'';
+      items+='<a class="sb-item'+active+'" href="'+href+'" title="'+esc(r.n+' - '+r.t)+'">'
+           +'<span class="sb-num">'+r.n+'</span><span class="sb-title">'+esc(r.t)+'</span></a>';
+    }
+  }
+  sb.innerHTML='<div class="sb-head"><button class="sb-toggle" onclick="toggleSidebar()" title="Collapse / expand">&#9776;</button>'
+    +'<span class="sb-h-label">Reports</span></div>'+items;
+}
+window.toggleSidebar=function(){ document.body.classList.toggle('sb-collapsed'); try{ localStorage.setItem('wbv_sb', document.body.classList.contains('sb-collapsed')?'1':'0'); }catch(e){} };
+buildSidebar();
+try{ if(localStorage.getItem('wbv_sb')==='1') document.body.classList.add('sb-collapsed'); }catch(e){}
+
+function checkGate(){ if(document.getElementById('code').value.trim()==='wbv2026'){ localStorage.setItem('wbv_rev','1'); showApp(); } else { document.getElementById('code').value=''; document.getElementById('code').placeholder='Try again'; } }
+function showApp(){ document.getElementById('gate').style.display='none'; document.getElementById('app').style.display='block'; load(); }
+if(localStorage.getItem('wbv_rev')==='1'){ window.addEventListener('DOMContentLoaded',showApp); }
+
+const money=v=>v==null?'-':('$'+Number(v).toLocaleString(undefined,{maximumFractionDigits:0}));
+const numf=v=>v==null?'-':Number(v).toLocaleString();
+const fmtD=s=>{ if(!s) return '-'; const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/); const d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(s); return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); };
+let charts=[], LIST=[], SORT={col:'stays',dir:-1};
+
+async function load(){
+  const out=document.getElementById('out'); out.innerHTML='<p class="sub">Crunching all-time guest history…</p>';
+  let d;
+  try{
+    const r=await fetch(SUPABASE_URL+'/rest/v1/rpc/repeat_customers',{method:'POST',
+      headers:{'Content-Type':'application/json',apikey:ANON,Authorization:'Bearer '+ANON},body:'{}'});
+    if(!r.ok) throw new Error('Data service error ('+r.status+')');
+    d=await r.json();
+  }catch(e){ out.innerHTML='<p class="err">'+esc(e.message||e)+'</p>'; return; }
+  render(d);
+}
+
+function render(d){
+  const s=d.summary||{};
+  const pctRepeat=s.total_customers?(s.repeat_customers/s.total_customers*100):0;
+  const pctNew=s.total_customers?(s.new_customers/s.total_customers*100):0;
+  const pctRepRev=s.revenue_total?(s.revenue_repeat/s.revenue_total*100):0;
+  const kpi=(t,v,sub)=>'<div class="kpi"><div class="t">'+t+'</div><div class="v">'+v+'</div>'+(sub?'<div class="s">'+sub+'</div>':'')+'</div>';
+  let html='<div class="kpis">'
+    +kpi('Total customers (all-time)', numf(s.total_customers), 'unique guests since 2022')
+    +kpi('Repeat customers', numf(s.repeat_customers)+' <span style="font-size:15px;color:var(--muted)">('+pctRepeat.toFixed(1)+'%)</span>', '2+ stays')
+    +kpi('New / one-time', numf(s.new_customers)+' <span style="font-size:15px;color:var(--muted)">('+pctNew.toFixed(1)+'%)</span>', 'single stay')
+    +kpi('Repeat stays', numf(s.repeat_stays), 'of '+numf(s.total_stays)+' total stays')
+    +kpi('Avg stays per repeat guest', (s.avg_stays_repeat==null?'-':s.avg_stays_repeat), 'times they came back')
+    +kpi('Revenue from repeat guests', money(s.revenue_repeat), pctRepRev.toFixed(1)+'% of '+money(s.revenue_total)+' total')
+    +'</div>';
+  html+='<div class="cards">'
+    +'<div class="card"><h3>Customers: repeat vs new</h3><div class="cbox"><canvas id="cCust"></canvas></div></div>'
+    +'<div class="card"><h3>Revenue: repeat vs new</h3><div class="cbox"><canvas id="cRev"></canvas></div></div>'
+    +'<div class="card"><h3>How many times guests have stayed</h3><div class="cbox"><canvas id="cDist"></canvas></div></div>'
+    +'</div>';
+  html+='<div class="card" style="margin-bottom:0"><h3>Repeat guests ('+numf((d.repeat_list||[]).length)+') — click a column to sort</h3>'
+    +'<div class="tbar"><input id="search" placeholder="Search name or email…" oninput="renderTable()">'
+    +'<button class="btn ghost" onclick="exportCSV()">Download CSV</button>'
+    +'<span class="sub">Excludes owner/staff & internal bookings. Stays include upcoming confirmed reservations.</span></div>'
+    +'<div class="tbl-wrap"><div id="tbl"></div></div></div>';
+  document.getElementById('out').innerHTML=html;
+  LIST=d.repeat_list||[]; SORT={col:'stays',dir:-1};
+  drawCharts(d); renderTable();
+}
+
+function drawCharts(d){
+  charts.forEach(c=>{try{c.destroy()}catch(e){}}); charts=[];
+  const s=d.summary||{};
+  charts.push(new Chart(document.getElementById('cCust'),{type:'doughnut',
+    data:{labels:['Repeat ('+numf(s.repeat_customers)+')','New ('+numf(s.new_customers)+')'],
+      datasets:[{data:[s.repeat_customers,s.new_customers],backgroundColor:['#0284c7','#cbd5e1']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}}));
+  charts.push(new Chart(document.getElementById('cRev'),{type:'doughnut',
+    data:{labels:['Repeat ('+money(s.revenue_repeat)+')','New ('+money(s.revenue_new)+')'],
+      datasets:[{data:[s.revenue_repeat,s.revenue_new],backgroundColor:['#15803d','#cbd5e1']}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}}));
+  const dist=d.distribution||[];
+  charts.push(new Chart(document.getElementById('cDist'),{type:'bar',
+    data:{labels:dist.map(x=>x.bucket+(x.bucket==='1'?' stay':' stays')),
+      datasets:[{data:dist.map(x=>x.customers),backgroundColor:dist.map(x=>x.bucket==='1'?'#cbd5e1':'#0284c7')}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{precision:0}}}}}));
+}
+
+const COLS=[['name','Guest',0],['email','Email',0],['stays','Stays',1],['nights','Nights',1],['avg_los','Avg nights/stay',1],['revenue','Revenue',1],['first_stay','First stay',2],['last_stay','Last stay',2]];
+function renderTable(){
+  const q=(document.getElementById('search')?.value||'').toLowerCase().trim();
+  let rows=LIST.filter(r=>!q || String(r.name).toLowerCase().includes(q) || String(r.email).toLowerCase().includes(q));
+  rows=rows.slice().sort((a,b)=>{
+    let x=a[SORT.col], y=b[SORT.col];
+    if(SORT.col==='revenue'||SORT.col==='stays'||SORT.col==='nights'||SORT.col==='avg_los'){ return ((Number(x)||0)-(Number(y)||0))*SORT.dir; }
+    return String(x==null?'':x).localeCompare(String(y==null?'':y))*SORT.dir;
+  });
+  const arrow=c=>SORT.col===c?(SORT.dir>0?' ▲':' ▼'):'';
+  let h='<table><thead><tr>'+COLS.map(c=>'<th class="'+(c[2]===1?'num':'')+'" onclick="sortBy(\''+c[0]+'\')">'+c[1]+arrow(c[0])+'</th>').join('')+'</tr></thead><tbody>';
+  h+=rows.map(r=>'<tr>'
+    +'<td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td>'
+    +'<td class="num">'+numf(r.stays)+'</td><td class="num">'+numf(r.nights)+'</td>'
+    +'<td class="num">'+(r.avg_los==null?'-':r.avg_los)+'</td><td class="num">'+money(r.revenue)+'</td>'
+    +'<td>'+fmtD(r.first_stay)+'</td><td>'+fmtD(r.last_stay)+'</td></tr>').join('');
+  h+='</tbody></table>';
+  document.getElementById('tbl').innerHTML=h;
+}
+function sortBy(col){ if(SORT.col===col) SORT.dir=-SORT.dir; else { SORT.col=col; SORT.dir=(col==='name'||col==='email')?1:-1; } renderTable(); }
+window.sortBy=sortBy;
+function exportCSV(){
+  const q=(document.getElementById('search')?.value||'').toLowerCase().trim();
+  const rows=LIST.filter(r=>!q || String(r.name).toLowerCase().includes(q) || String(r.email).toLowerCase().includes(q));
+  const head=COLS.map(c=>c[1]).join(',');
+  const body=rows.map(r=>[r.name,r.email,r.stays,r.nights,r.avg_los,r.revenue,r.first_stay,r.last_stay]
+    .map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([head+'\n'+body],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='repeat-customers.csv'; a.click();
+}
+window.exportCSV=exportCSV; window.load=load;
+</script>
+</body>
+</html>
