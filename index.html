@@ -162,6 +162,7 @@
       title:'Future Reservations',
       desc:'All upcoming reservations — guest, amount paid, date paid, balance due, booking date, source, check-in/out.',
       view:'rpt_future_reservations', order:'checkin.asc', dateField:'checkin', dateLabel:'check-in date',
+      dateFields:[['checkin','check-in date'],['date_of_booking','booked date']],
       boolFilter:{field:'unassigned', label:'Unassigned only'},
       cols:[['guest_name','Guest','strong'],['room_assignment','Room / Villa'],['booking_source','Source'],['checkin','Check-in','date'],
             ['checkout','Check-out','date'],['amount_paid','Paid','money'],['balance_due','Balance','money'],
@@ -494,7 +495,9 @@
              +'<button onclick="loadReport(\''+r.slug+'\')">Apply</button> '
              +'<button class="ghost btn" onclick="clearDates(\''+r.slug+'\')">Clear</button>';
     } else if(r.dateField){
-      toolbar+='<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> '
+      toolbar+=(r.dateFields
+             ? '<span class="muted">Filter by</span> <select id="datefield" class="dp" onchange="loadReport(\''+r.slug+'\')">'+r.dateFields.map(function(df){return '<option value="'+df[0]+'">'+esc(df[1])+'</option>';}).join('')+'</select><span class="muted">:</span> '
+             : '<span class="muted">Filter by '+esc(r.dateLabel||'date')+':</span> ')
              +'From <input type="text" id="from" class="dp" placeholder="Any"> '
              +'To <input type="text" id="to" class="dp" placeholder="Any"> '
              +'<button class="ghost btn" onclick="setDayPreset(\''+r.slug+'\',7)">Last 7 days</button> '
@@ -604,10 +607,11 @@
 
   function dateSuffix(r){
     let s='';
-    if(r.dateField){
+    const _df=(r.dateFields?(document.getElementById('datefield')?.value||r.dateFields[0][0]):r.dateField);
+    if(_df){
       const f=document.getElementById('from')?.value, t=document.getElementById('to')?.value;
-      if(r.dateGran==='month'){ if(f) s+=`&${r.dateField}=gte.${f}-01`; if(t) s+=`&${r.dateField}=lte.${t}-01`; }
-      else { if(f) s+=`&${r.dateField}=gte.${f}`; if(t) s+=`&${r.dateField}=lte.${t}${r.dateTS?'T23:59:59':''}`; }
+      if(r.dateGran==='month'){ if(f) s+=`&${_df}=gte.${f}-01`; if(t) s+=`&${_df}=lte.${t}-01`; }
+      else { if(f) s+=`&${_df}=gte.${f}`; if(t) s+=`&${_df}=lte.${t}${r.dateTS?'T23:59:59':''}`; }
     }
     return s;
   }
@@ -626,12 +630,35 @@
       else { box.innerHTML='<div style="background:#fef2f2;border:1px solid var(--red);color:#b91c1c;padding:12px 14px;border-radius:10px;font-weight:600">⚠ '+n+' unresolved card exception'+(n===1?'':'s')+' ($'+Math.round(sum).toLocaleString()+') — charges that failed and were not recaptured. Rows with a reservation (✔) are the ones to chase; no reservation usually means the card declined during booking (nothing owed). Details below.</div>'; }
     }catch(e){ box.innerHTML=''; }
   }
-  function tableHTML(cols, rows){
-    let h='<table><thead><tr>'+cols.map(c=>'<th>'+c[1]+'</th>').join('')+'</tr></thead><tbody>';
+  function tableHTML(cols, rows, sortable){
+    const ss=window.__sort||{col:null,dir:1};
+    const th=cols.map(function(c,i){
+      if(!sortable) return '<th>'+c[1]+'</th>';
+      const arrow=(ss.col===i)?(ss.dir>0?' ▲':' ▼'):'';
+      return '<th style="cursor:pointer;user-select:none;white-space:nowrap" onclick="sortTable('+i+')" title="Click to sort">'+c[1]+arrow+'</th>';
+    }).join('');
+    let h='<table><thead><tr>'+th+'</tr></thead><tbody>';
     if(!rows.length) h+='<tr><td colspan="'+cols.length+'" class="muted">No rows.</td></tr>';
     else h+=rows.map(row=>'<tr>'+cols.map(c=>'<td>'+cell(row[c[0]],c[2])+'</td>').join('')+'</tr>').join('');
     return h+'</tbody></table>';
   }
+  function sortTable(i){
+    const cur=window.__csv; if(!cur||!cur.rows) return;
+    const ss=window.__sort||{col:null,dir:1};
+    if(ss.col===i) ss.dir=-ss.dir; else { ss.col=i; ss.dir=1; }
+    window.__sort=ss;
+    const key=cur.cols[i][0], type=cur.cols[i][2];
+    const numeric=(type==='money'||type==='pct'||type==='days');
+    cur.rows.sort(function(ra,rb){
+      let a=ra[key], b=rb[key];
+      if(numeric){ return ((Number(a)||0)-(Number(b)||0))*ss.dir; }
+      const an=(a!=null&&a!==''&&!isNaN(a)), bn=(b!=null&&b!==''&&!isNaN(b));
+      if(an&&bn) return (Number(a)-Number(b))*ss.dir;
+      return String(a==null?'':a).localeCompare(String(b==null?'':b))*ss.dir;
+    });
+    const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=tableHTML(cur.cols, cur.rows, true);
+  }
+  window.sortTable=sortTable;
   async function loadReport(slug){
     const r=REPORTS.find(x=>x.slug===slug);
     const st=document.getElementById('status'); st.textContent='Loading…';
@@ -675,7 +702,8 @@
           +'<div class="kpi-s">'+cnt.toLocaleString()+' '+esc(r.total.unit||'transactions')+' across '+days+' day'+(days===1?'':'s')+'</div></div>';
       } }
       window.__csv={cols:r.cols, rows:rows, name:r.slug};
-      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=tableHTML(r.cols, rows);
+      window.__sort={col:null,dir:1};
+      const tbl=document.getElementById('tbl'); if(tbl) tbl.innerHTML=tableHTML(r.cols, rows, true);
       await drawChartsInto(r.charts, rows, 'charts', 'ch');
       st.textContent=rows.length+' rows · updated '+new Date().toLocaleTimeString();
       if(r.section2){
