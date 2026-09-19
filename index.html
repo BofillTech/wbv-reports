@@ -254,7 +254,9 @@
       charts:[
         {type:'bar', title:'Settled deposits by day', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'settlement_date', agg:'settled_net', sortKey:true, dateKey:true, fmt:'money'},
         {type:'bar', title:'By card type — Visa/MC/Disc vs Amex (matches bank ACH lines)', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'card_group', agg:'settled_net', fmt:'money'},
-        {type:'bar', title:'Cloudbeds recorded − Auth.net settled, by month (~0 = reconciled)', source:'rpt_authnet_recon_month', groupBy:'month', agg:'difference', sortKey:true, fmt:'money'}
+        {type:'bar', title:'Cloudbeds recorded − Auth.net settled, by month (~0 = reconciled)', source:'rpt_authnet_recon_month', groupBy:'month', agg:'difference', sortKey:true, fmt:'money'},
+        {type:'bar', title:'Card money by day — new booking vs existing (reconciles to Auth.net)', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'day', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, dateKey:true, fmt:'money'},
+        {type:'bar', title:'Card money by month — new booking vs existing', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'month', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, fmt:'money'}
       ],
       cols:[['settlement_date','Settled','date'],['last_name','Last name'],['first_name','First'],['account_type','Card'],['account_number','Last 4'],['amount','Amount','money'],['transaction_status','Status'],['invoice_number','CB ref']] },
 
@@ -746,6 +748,170 @@
           if(tv) u+=`&${c.dateField}=lte.${gd(tv)}`;
         }
         try{ const res=await fetch(u,{headers:{apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'}}); data=res.ok?await res.json():[]; }catch(e){ data=[]; }
+      }
+      if(c.seriesBy){
+        const acc={}, seriesSet=new Set(), keys=[], keySeen={};
+        for(const row of data){ const k=row[c.groupBy]; if(k==null||k==='') continue;
+          if(!keySeen[k]){ keySeen[k]=1; keys.push(k); }
+          const sName=row[c.seriesBy]==null?'(none)':String(row[c.seriesBy]);
+          seriesSet.add(sName);
+          (acc[sName]=acc[sName]||{})[k]=(acc[sName][k]||0)+Number(row[c.agg]||0);
+        }
+        if(c.sortKey) keys.sort();
+        let series=[...seriesSet];
+        if(c.seriesOrder) series.sort((a,b)=>((c.seriesOrder.indexOf(a)+1)||99)-((c.seriesOrder.indexOf(b)+1)||99));
+        const labels=keys.map(k=>c.dateKey?dfmt(k):k);
+        const palette=['#0284c7','#f59e0b','#15803d','#ef4444','#8b5cf6'];
+        const fmtS=c.fmt||'money';
+        const fmtVS=v=>fmtS==='money'?'
+        if(c.aggNum){ num[k]=(num[k]||0)+Number(row[c.aggNum]||0); den[k]=(den[k]||0)+Number(row[c.aggDen]||0); }
+        else { num[k]=(num[k]||0)+Number(row[c.agg]||0); }
+      }
+      const ratioMul=c.fmt==='pct'?100:1;
+      const val=k=>c.aggNum?(den[k]?ratioMul*num[k]/den[k]:0):num[k];
+      let keys=Object.keys(num);
+      if(c.groupBy==='villa') keys.sort((a,b)=>((VILLA_ORDER.indexOf(a)+1)||99)-((VILLA_ORDER.indexOf(b)+1)||99));
+      else if(c.sortKey) keys.sort();
+      else keys.sort((a,b)=>val(b)-val(a));
+      const labels=keys.map(k=>c.dateKey?dfmt(k):k);
+      const vals=keys.map(k=>Math.round(val(k)*10)/10);
+      const colors=keys.map((k,j)=>c.groupBy==='villa'?(VILLA_COLORS[k]||`hsl(${200+j*34},70%,55%)`):`hsl(${200+j*34},70%,55%)`);
+      const isLine=c.type==='line';
+      const fmt=c.fmt||'money';
+      const fmtV=v=>fmt==='money'?'$'+Number(v).toLocaleString():fmt==='pct'?Number(v)+'%':Number(v).toLocaleString();
+      const el=document.getElementById(prefix+i); if(!el) continue;
+      CHARTINST.push(new Chart(el,{ type:c.type,
+        data:{ labels, datasets:[{ label:c.title, data:vals,
+          backgroundColor:isLine?'rgba(56,189,248,.15)':colors,
+          borderColor:isLine?'#38bdf8':colors, fill:isLine, tension:.3, pointRadius:2 }] },
+        options:{ responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>fmtV(ctx.parsed.y)}} },
+          scales:{ x:{grid:GRID,ticks:TICK}, y:{grid:GRID,ticks:{color:'#64748b',callback:fmtV}, suggestedMax:fmt==='pct'?100:undefined} } } }));
+    }
+  }
+
+  // ---- Revenue & Cash top section (Report #2) — v2.1 (checkin chart + future AR) ---
+  let REVDATA=null, REVCHART=null, REVCHART2=null, REVPERIOD='ytd', REVFROM=null, REVTO=null;
+  const REVH={apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'};
+  const monLabel=k=>{const[y,mo]=k.split('-');return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+mo-1]+' '+y;};
+  async function renderRevenueTop(){
+    const host=document.getElementById('revtop'); if(!host) return;
+    host.innerHTML=
+      '<div class="grp">Revenue &amp; Cash</div>'
+     +'<div class="row-actions" style="margin-bottom:14px">'
+     +'<button class="btn ghost rev-per" data-p="ytd" onclick="setRevPeriod(\'ytd\')">This year</button>'
+     +'<button class="btn ghost rev-per" data-p="l12" onclick="setRevPeriod(\'l12\')">Last 12 months</button>'
+     +'<button class="btn ghost rev-per" data-p="all" onclick="setRevPeriod(\'all\')">All time</button>'
+     +'<span class="muted" style="margin-left:10px">or custom range:</span> '
+     +'From <select id="revFrom" onchange="setRevRange()"></select> '
+     +'To <select id="revTo" onchange="setRevRange()"></select>'
+     +'</div>'
+     +'<div class="kpis" id="revkpi"></div>'
+     +'<div id="revfuture" style="margin-top:14px"></div>'
+     +'<div class="chart-card" style="margin:16px 0 18px"><h3 id="revchartTitle">Revenue vs Cash by booking month</h3>'
+     +'<p class="muted" style="margin:-6px 0 12px;font-size:12.5px">Grouped by <strong>when the booking was made</strong>, not when guests stay. Recent months look under-collected because most of what was booked then is for stays still upcoming — only the deposit (typically 50%) is in so far; the rest is due 90 days before check-in. Every booking whose stay has already passed is collected in full. For a fully-collected view of completed months, see the by-stay-month chart below.</p>'
+     +'<div class="cbox" style="height:300px"><canvas id="revcanvas"></canvas></div></div>'
+     +'<div class="chart-card" style="margin:0 0 22px"><h3 id="revchartTitle2">Revenue vs Cash by check-in (stay) month</h3>'
+     +'<p class="muted" style="margin:-6px 0 12px;font-size:12.5px">Grouped by when guests actually stay. Past months are fully collected; upcoming months show only deposits in so far — the blue-over-green gap is the balance still owed (due 90 days before check-in).</p>'
+     +'<div class="cbox" style="height:300px"><canvas id="revcanvas2"></canvas></div></div>';
+    if(!REVDATA){
+      try{
+        const [rev,cash,chk,fut]=await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_revenue_by_room_type?select=month,revenue`,{headers:REVH}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_cash_collected_by_room_type?select=month,collected`,{headers:REVH}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_by_checkin_month?select=checkin_month,revenue,collected`,{headers:REVH}).then(r=>r.json()),
+          fetch(`${SUPABASE_URL}/rest/v1/rpt_future_to_collect`,{headers:REVH}).then(r=>r.json())
+        ]);
+        const bmap={};
+        for(const r of rev){ const k=String(r.month).slice(0,7); (bmap[k]=bmap[k]||{rev:0,cash:0}).rev+=Number(r.revenue||0); }
+        for(const r of cash){ const k=String(r.month).slice(0,7); (bmap[k]=bmap[k]||{rev:0,cash:0}).cash+=Number(r.collected||0); }
+        const cmap={};
+        for(const r of chk){ const k=String(r.checkin_month).slice(0,7); const o=(cmap[k]=cmap[k]||{rev:0,cash:0}); o.rev+=Number(r.revenue||0); o.cash+=Number(r.collected||0); }
+        REVDATA={
+          book:Object.keys(bmap).sort().map(k=>({mo:k,rev:bmap[k].rev,cash:bmap[k].cash})),
+          checkin:Object.keys(cmap).sort().map(k=>({mo:k,rev:cmap[k].rev,cash:cmap[k].cash})),
+          future:(Array.isArray(fut)?fut[0]:fut)||{future_balance:0,future_bookings:0,future_revenue:0}
+        };
+      }catch(e){ host.innerHTML+='<p style="color:var(--red)">Could not load revenue: '+esc(e.message||e)+'</p>'; return; }
+    }
+    drawRev();
+  }
+  function periodStart(p){
+    const now=new Date(), y=now.getFullYear();
+    if(p==='ytd') return `${y}-01`;
+    if(p==='l12'){ const d=new Date(y,now.getMonth()-11,1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+    return '0000-00';
+  }
+  window.setRevPeriod=function(p){ REVPERIOD=p; REVFROM=null; REVTO=null; drawRev(); };
+  window.setRevRange=function(){ let f=document.getElementById('revFrom').value, t=document.getElementById('revTo').value; if(f&&t){ if(f>t){ const x=f; f=t; t=x; } REVPERIOD='custom'; REVFROM=f; REVTO=t; drawRev(); } };
+  function kpiCard(title,val,sub,color){
+    return '<div class="kpi"><div class="kpi-t">'+esc(title)+'</div>'
+      +'<div class="kpi-v" style="color:'+color+'">$'+Math.round(val).toLocaleString()+'</div>'
+      +'<div class="kpi-s">'+esc(sub)+'</div></div>';
+  }
+  function drawRevBars(canvasId, rows, prev){
+    const GRID={color:'#e4e8ee'}, TICK={color:'#64748b'}, fmtV=v=>'$'+Number(v).toLocaleString();
+    const labels=rows.map(r=>monLabel(r.mo));
+    const revV=rows.map(r=>Math.round(r.rev)), cashV=rows.map(r=>Math.round(r.cash));
+    if(prev){try{prev.destroy();}catch(e){}}
+    const c=new Chart(document.getElementById(canvasId),{type:'bar',
+      data:{labels,datasets:[
+        {label:'Revenue booked',data:revV,backgroundColor:'#38bdf8'},
+        {label:'Cash collected',data:cashV,backgroundColor:'#22c55e'}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,labels:{color:'#64748b',boxWidth:12}},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtV(ctx.parsed.y)}}},
+        scales:{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:{color:'#64748b',callback:fmtV}}}}});
+    CHARTINST.push(c); return c;
+  }
+  function drawRev(){
+    if(!REVDATA) return;
+    const fSel=document.getElementById('revFrom'), tSel=document.getElementById('revTo');
+    if(fSel && tSel && !fSel.dataset.filled){
+      const months=[...new Set([...REVDATA.book.map(r=>r.mo), ...REVDATA.checkin.map(r=>r.mo)])].sort();
+      const opts=months.map(m=>'<option value="'+m+'">'+monLabel(m)+'</option>').join('');
+      fSel.innerHTML=opts; tSel.innerHTML=opts; fSel.dataset.filled='1'; tSel.dataset.filled='1';
+      if(months.length){ fSel.value=months[0]; tSel.value=months[months.length-1]; }
+    }
+    let brows, crows, label;
+    if(REVPERIOD==='custom' && REVFROM && REVTO){
+      brows=REVDATA.book.filter(r=>r.mo>=REVFROM && r.mo<=REVTO);
+      crows=REVDATA.checkin.filter(r=>r.mo>=REVFROM && r.mo<=REVTO);
+      label=monLabel(REVFROM)+' – '+monLabel(REVTO);
+      if(fSel) fSel.value=REVFROM; if(tSel) tSel.value=REVTO;
+    } else {
+      const start=periodStart(REVPERIOD);
+      brows=REVDATA.book.filter(r=>r.mo>=start);
+      crows=REVDATA.checkin.filter(r=>r.mo>=start);
+      label={ytd:'Year to date',l12:'Last 12 months',all:'All time'}[REVPERIOD];
+    }
+    const totRev=brows.reduce((s,r)=>s+r.rev,0), totCash=brows.reduce((s,r)=>s+r.cash,0);
+    document.getElementById('revkpi').innerHTML=
+       kpiCard('Revenue booked · '+label,totRev,'Full value of bookings made in this period','var(--accent)')
+      +kpiCard('Cash collected (deposits) · '+label,totCash,totRev>0?('$'+Math.round(totCash).toLocaleString()+' of $'+Math.round(totRev).toLocaleString()+' booked · '+Math.round(100*totCash/totRev)+'% collected'):'Deposits + payments received to date','var(--green)');
+    const f=REVDATA.future;
+    document.getElementById('revfuture').innerHTML=
+      '<div class="kpi" style="border-color:var(--amber)">'
+      +'<div class="kpi-t">Still to collect · all future bookings on file</div>'
+      +'<div class="kpi-v" style="color:var(--amber)">$'+Math.round(Number(f.future_balance||0)).toLocaleString()+'</div>'
+      +'<div class="kpi-s">Outstanding balance across '+Number(f.future_bookings||0).toLocaleString()+' upcoming bookings · $'+Math.round(Number(f.future_revenue||0)).toLocaleString()+' total booked value (balances due 90 days before check-in)</div></div>';
+    document.querySelectorAll('.rev-per').forEach(b=>b.classList.toggle('active', REVPERIOD!=='custom' && b.dataset.p===REVPERIOD));
+    document.getElementById('revchartTitle').textContent='Revenue vs Cash by booking month — '+label;
+    document.getElementById('revchartTitle2').textContent='Revenue vs Cash by check-in (stay) month — '+label;
+    REVCHART=drawRevBars('revcanvas', brows, REVCHART);
+    REVCHART2=drawRevBars('revcanvas2', crows, REVCHART2);
+  }
+</script>
+</body>
+</html>
++Number(v).toLocaleString():fmtS==='pct'?Number(v)+'%':Number(v).toLocaleString();
+        const datasets=series.map((sName,si)=>({label:sName,data:keys.map(k=>Math.round((acc[sName][k]||0)*10)/10),backgroundColor:palette[si%palette.length],stack:'st'}));
+        const el=document.getElementById(prefix+i); if(!el) continue;
+        CHARTINST.push(new Chart(el,{type:c.type,data:{labels,datasets},
+          options:{responsive:true,maintainAspectRatio:false,
+            plugins:{legend:{display:true,position:'bottom'},tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmtVS(ctx.parsed.y)}}},
+            scales:{x:{stacked:true,grid:GRID,ticks:TICK},y:{stacked:true,grid:GRID,ticks:{color:'#64748b',callback:fmtVS}}}}}));
+        continue;
       }
       const num={}, den={};
       for(const row of data){ const k=row[c.groupBy]; if(k==null||k==='') continue;
