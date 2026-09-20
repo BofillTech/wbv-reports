@@ -255,8 +255,8 @@
         {type:'bar', title:'Settled deposits by day', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'settlement_date', agg:'settled_net', sortKey:true, dateKey:true, fmt:'money'},
         {type:'bar', title:'By card type — Visa/MC/Disc vs Amex (matches bank ACH lines)', source:'rpt_authnet_by_day', dateField:'settlement_date', groupBy:'card_group', agg:'settled_net', fmt:'money'},
         {type:'bar', title:'Cloudbeds recorded − Auth.net settled, by month (~0 = reconciled)', source:'rpt_authnet_recon_month', groupBy:'month', agg:'difference', sortKey:true, fmt:'money'},
-        {type:'bar', title:'Card money by day — new booking vs existing (reconciles to Auth.net)', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'day', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, dateKey:true, fmt:'money'},
-        {type:'bar', title:'Card money by month — new booking vs existing', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'month', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, fmt:'money'}
+        {type:'bar', title:'Card money by day — new booking vs existing (reconciles to Auth.net)', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'day', agg:'amount', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, dateKey:true, fmt:'money'},
+        {type:'bar', title:'Card money by month — new booking vs existing', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'month', agg:'amount', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, fmt:'money'}
       ],
       cols:[['settlement_date','Settled','date'],['last_name','Last name'],['first_name','First'],['account_type','Card'],['account_number','Last 4'],['amount','Amount','money'],['transaction_status','Status'],['invoice_number','CB ref']] },
 
