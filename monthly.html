@@ -68,7 +68,11 @@
     </div>
     <div style="display:flex;gap:10px;align-items:center">
       <a class="btn ghost" href="index.html">All reports</a>
-      <select id="monthSel" onchange="render()"></select>
+      <span class="muted" style="font-size:12.5px">From</span>
+      <select id="fromSel" onchange="onRange('from')"></select>
+      <span class="muted" style="font-size:12.5px">To</span>
+      <select id="toSel" onchange="onRange('to')"></select>
+      <button class="btn ghost" onclick="resetRange()" title="Reset to latest single month">Latest</button>
       <span id="status" class="muted" style="font-size:12px"></span>
     </div>
   </header>
@@ -93,6 +97,10 @@
   const chg=(cur,prev)=>{ if(prev==null||prev==0) return ''; const p=(cur-prev)/Math.abs(prev)*100;
     const cls=p>=0?'up':'down'; return `<span class="${cls}">${p>=0?'▲':'▼'} ${Math.abs(p).toFixed(0)}%</span>`; };
 
+  const addMonths=(k,n)=>{ const [y,m]=k.split('-').map(Number); const t=y*12+(m-1)+n; return Math.floor(t/12)+'-'+String(t%12+1).padStart(2,'0'); };
+  const monthsBetween=(a,b)=>{ if(a>b){const x=a;a=b;b=x;} const out=[]; let k=a,g=0; while(k<=b&&g<600){ out.push(k); k=addMonths(k,1); g++; } return out; };
+  let MONTHS=[];
+
   function tryGate(){
     if(document.getElementById('code').value.trim()===ACCESS_CODE){
       document.getElementById('gate').style.display='none'; boot();
@@ -113,9 +121,11 @@
         get('v_mr_sales_by_month'),get('v_mr_source_by_month'),get('v_mr_villa_by_month'),
         get('v_mr_occupancy_by_month'),get('v_mr_cash_expected'),get('v_mr_cc_by_month')]);
       DATA={sales,source,villa,occ,cash,cc};
-      const sel=document.getElementById('monthSel');
-      const months=[...new Set(sales.map(r=>mKey(r.month)))].sort().reverse();
-      sel.innerHTML=months.map(m=>`<option value="${m}">${mLabel(m)}</option>`).join('');
+      MONTHS=[...new Set(sales.map(r=>mKey(r.month)))].sort().reverse();
+      const opts=MONTHS.map(m=>`<option value="${m}">${mLabel(m)}</option>`).join('');
+      const fromSel=document.getElementById('fromSel'), toSel=document.getElementById('toSel');
+      fromSel.innerHTML=opts; toSel.innerHTML=opts;
+      fromSel.value=MONTHS[0]; toSel.value=MONTHS[0];
       st.textContent='Updated '+new Date().toLocaleTimeString();
       render();
     }catch(e){
@@ -132,39 +142,61 @@
     cfg.options.scales=cfg.options.scales||{x:{grid:GRID,ticks:TICK},y:{grid:GRID,ticks:TICK}};
     CHARTS.push(new Chart(el,cfg)); }
 
+  function onRange(which){
+    const f=document.getElementById('fromSel'), t=document.getElementById('toSel');
+    if(f.value>t.value){ if(which==='from') t.value=f.value; else f.value=t.value; }
+    render();
+  }
+  function resetRange(){
+    document.getElementById('fromSel').value=MONTHS[0];
+    document.getElementById('toSel').value=MONTHS[0];
+    render();
+  }
+
   function render(){
     destroyCharts();
-    const sel=document.getElementById('monthSel').value;      // 'YYYY-MM'
-    const [Y,M]=sel.split('-').map(Number);
+    const from=document.getElementById('fromSel').value, to=document.getElementById('toSel').value;
+    const rangeKeys=monthsBetween(from,to);
+    const RANGE=new Set(rangeKeys);
+    const isRange=rangeKeys.length>1, N=rangeKeys.length;
+    const [Y,M]=to.split('-').map(Number);
+    const rLabel=isRange?`${mLabel(from)} – ${mLabel(to)}`:mLabel(to);
     const S=DATA.sales, byKey=Object.fromEntries(S.map(r=>[mKey(r.month),r]));
-    const cur=byKey[sel]||{bookings:0,revenue:0,nights:0,avg_nights:0,avg_per_night:0};
-    const prevM=new Date(Y,M-2,1), prevKey=prevM.getFullYear()+'-'+String(prevM.getMonth()+1).padStart(2,'0');
-    const yoyKey=(Y-1)+'-'+String(M).padStart(2,'0');
-    const prev=byKey[prevKey], yoy=byKey[yoyKey];
-    // YTD (Jan..selected of year Y)
-    const ytd=S.filter(r=>{const k=mKey(r.month);return k.startsWith(Y+'-')&&k<=sel;});
-    const ytdRev=ytd.reduce((a,r)=>a+Number(r.revenue||0),0);
-    const ytdPrior=S.filter(r=>{const k=mKey(r.month);return k.startsWith((Y-1)+'-')&&k<=yoyKey;})
-                    .reduce((a,r)=>a+Number(r.revenue||0),0);
+    const aggSales=set=>{ const r=S.filter(x=>set.has(mKey(x.month)));
+      const bookings=r.reduce((a,x)=>a+Number(x.bookings||0),0);
+      const revenue=r.reduce((a,x)=>a+Number(x.revenue||0),0);
+      const nights=r.reduce((a,x)=>a+Number(x.nights||0),0);
+      return {bookings,revenue,nights,avg_nights:bookings?nights/bookings:0,avg_per_night:nights?revenue/nights:0}; };
+    const aggGroup=(rows,field)=>{ const m={};
+      rows.filter(r=>RANGE.has(mKey(r.month))).forEach(r=>{ const k=r[field]??'—';
+        (m[k]=m[k]||{key:k,bookings:0,revenue:0,nights:0});
+        m[k].bookings+=Number(r.bookings||0); m[k].revenue+=Number(r.revenue||0); m[k].nights+=Number(r.nights||0); });
+      return Object.values(m); };
+    const cur=aggSales(RANGE);
+    const prev=aggSales(new Set(monthsBetween(addMonths(from,-N),addMonths(from,-1))));
+    const yoy=aggSales(new Set(monthsBetween(addMonths(from,-12),addMonths(to,-12))));
+    const ytdRev=aggSales(new Set(monthsBetween(Y+'-01',to))).revenue;
+    const ytdPrior=aggSales(new Set(monthsBetween((Y-1)+'-01',addMonths(to,-12)))).revenue;
+    const momLbl=isRange?`vs prior ${N}mo`:'MoM', yoyLbl=isRange?'vs last yr':'YoY';
 
     let h='';
     // ---- KPI cards ----
-    h+=`<div class="grp">${mLabel(sel)} — New Booking Sales</div><div class="cards">
-      ${kpi('New bookings',num(cur.bookings),prev&&chg(cur.bookings,prev.bookings))}
-      ${kpi('Revenue (all-in)',money(cur.revenue),(prev?chg(cur.revenue,prev.revenue)+' MoM ':'')+(yoy?chg(cur.revenue,yoy.revenue)+' YoY':''))}
+    h+=`<div class="grp">${rLabel} — New Booking Sales${isRange?` &middot; <span style="text-transform:none;letter-spacing:0;color:var(--muted)">${N} months combined</span>`:''}</div><div class="cards">
+      ${kpi('New bookings',num(cur.bookings),prev.bookings?chg(cur.bookings,prev.bookings)+' '+momLbl:'')}
+      ${kpi('Revenue (all-in)',money(cur.revenue),(prev.revenue?chg(cur.revenue,prev.revenue)+' '+momLbl+' ':'')+(yoy.revenue?chg(cur.revenue,yoy.revenue)+' '+yoyLbl:''))}
       ${kpi('Nights sold',num(cur.nights),'')}
-      ${kpi('Avg nights',cur.avg_nights??'—','')}
+      ${kpi('Avg nights',cur.avg_nights?cur.avg_nights.toFixed(1):'—','')}
       ${kpi('Avg $/night',money(cur.avg_per_night),'')}
       ${kpi('YTD revenue',money(ytdRev),ytdPrior?chg(ytdRev,ytdPrior)+' vs prior YTD':'')}
     </div>`;
 
     // ---- Source of Business ----
-    const src=DATA.source.filter(r=>mKey(r.month)===sel).sort((a,b)=>b.revenue-a.revenue);
+    const src=aggGroup(DATA.source,'source_bucket').sort((a,b)=>b.revenue-a.revenue);
     const srcTot=src.reduce((a,r)=>a+Number(r.revenue||0),0);
     h+=`<div class="grp">Source of Business</div><div class="row">
-      <div class="box"><h3>By source — ${mLabel(sel)}</h3><table><thead><tr>
+      <div class="box"><h3>By source — ${rLabel}</h3><table><thead><tr>
         <th>Source</th><th>Bookings</th><th>%</th><th>Revenue</th><th>Nights</th></tr></thead><tbody>
-        ${src.map(r=>`<tr><td>${esc(r.source_bucket)}</td><td>${num(r.bookings)}</td>
+        ${src.map(r=>`<tr><td>${esc(r.key)}</td><td>${num(r.bookings)}</td>
           <td>${srcTot?((r.revenue/srcTot*100).toFixed(0)+'%'):'—'}</td><td class="money">${money(r.revenue)}</td>
           <td>${num(r.nights)}</td></tr>`).join('')||'<tr><td colspan=5 class=muted>No data</td></tr>'}
       </tbody><tfoot><tr><td>Total</td><td>${num(src.reduce((a,r)=>a+r.bookings,0))}</td><td>100%</td>
@@ -173,11 +205,11 @@
     </div>`;
 
     // ---- Sales by Villa ----
-    const vil=DATA.villa.filter(r=>mKey(r.month)===sel).sort((a,b)=>b.revenue-a.revenue);
+    const vil=aggGroup(DATA.villa,'villa').map(r=>({...r,avg_per_night:r.nights?r.revenue/r.nights:0})).sort((a,b)=>b.revenue-a.revenue);
     h+=`<div class="grp">Sales by Villa</div><div class="row">
-      <div class="box"><h3>By villa — ${mLabel(sel)}</h3><table><thead><tr>
+      <div class="box"><h3>By villa — ${rLabel}</h3><table><thead><tr>
         <th>Villa</th><th>Bookings</th><th>Revenue</th><th>Nights</th><th>Avg $/night</th></tr></thead><tbody>
-        ${vil.map(r=>`<tr><td>${esc(r.villa)}</td><td>${num(r.bookings)}</td><td class="money">${money(r.revenue)}</td>
+        ${vil.map(r=>`<tr><td>${esc(r.key)}</td><td>${num(r.bookings)}</td><td class="money">${money(r.revenue)}</td>
           <td>${num(r.nights)}</td><td class="money">${money(r.avg_per_night)}</td></tr>`).join('')
           ||'<tr><td colspan=5 class=muted>No data</td></tr>'}
       </tbody></table></div>
@@ -196,12 +228,17 @@
       </div>`;
 
     // ---- Occupancy ----
-    const occCur=DATA.occ.filter(r=>mKey(r.month)===sel).sort((a,b)=>a.villa.localeCompare(b.villa));
+    const occAgg={};
+    DATA.occ.filter(r=>RANGE.has(mKey(r.month))).forEach(r=>{ const k=r.villa;
+      (occAgg[k]=occAgg[k]||{villa:k,units:0,avail_nights:0,occupied_nights:0});
+      occAgg[k].units=Number(r.units||0);
+      occAgg[k].avail_nights+=Number(r.avail_nights||0); occAgg[k].occupied_nights+=Number(r.occupied_nights||0); });
+    const occCur=Object.values(occAgg).map(r=>({...r,occupancy_pct:r.avail_nights?r.occupied_nights/r.avail_nights*100:0})).sort((a,b)=>a.villa.localeCompare(b.villa));
     const uSum=occCur.reduce((a,r)=>a+Number(r.units||0),0),
           aSum=occCur.reduce((a,r)=>a+Number(r.avail_nights||0),0),
           oSum=occCur.reduce((a,r)=>a+Number(r.occupied_nights||0),0);
     h+=`<div class="grp">Occupancy</div><div class="row">
-      <div class="box"><h3>Occupancy — ${mLabel(sel)}</h3><table><thead><tr>
+      <div class="box"><h3>Occupancy — ${rLabel}</h3><table><thead><tr>
         <th>Villa</th><th>Units</th><th>Avail nights</th><th>Occupied</th><th>Occupancy</th></tr></thead><tbody>
         ${occCur.map(r=>`<tr><td>${esc(r.villa)}</td><td>${num(r.units)}</td><td>${num(r.avail_nights)}</td>
           <td>${num(r.occupied_nights)}</td><td>${pct(r.occupancy_pct)}</td></tr>`).join('')
@@ -212,10 +249,11 @@
     </div>`;
 
     // ---- Cash expected + CC ----
-    const cashF=DATA.cash.filter(r=>mKey(r.month)>=sel).sort((a,b)=>a.month<b.month?-1:1);
-    const ccCur=DATA.cc.find(r=>mKey(r.month)===sel);
+    const cashF=DATA.cash.filter(r=>mKey(r.month)>=from).sort((a,b)=>a.month<b.month?-1:1);
+    const _ccRows=DATA.cc.filter(r=>RANGE.has(mKey(r.month)));
+    const ccCur={cc_collected:_ccRows.reduce((a,r)=>a+Number(r.cc_collected||0),0),payments:_ccRows.reduce((a,r)=>a+Number(r.payments||0),0)};
     h+=`<div class="grp">Cash &amp; Collections</div><div class="row">
-      <div class="box"><h3>Cash expected (balances due + OTA)</h3><table><thead><tr>
+      <div class="box"><h3>Cash expected (balances due + OTA) — ${mLabel(from)} onward</h3><table><thead><tr>
         <th>Month</th><th>Balances due</th><th>OTA</th><th>Total</th></tr></thead><tbody>
         ${cashF.map(r=>`<tr><td>${mLabel(r.month)}</td><td class="money">${money(r.balances_due)}</td>
           <td class="money">${money(r.ota)}</td><td class="money">${money(Number(r.balances_due)+Number(r.ota))}</td></tr>`).join('')
@@ -224,7 +262,7 @@
         <td class="money">${money(cashF.reduce((a,r)=>a+Number(r.balances_due||0),0))}</td>
         <td class="money">${money(cashF.reduce((a,r)=>a+Number(r.ota||0),0))}</td>
         <td class="money">${money(cashF.reduce((a,r)=>a+Number(r.balances_due||0)+Number(r.ota||0),0))}</td></tr></tfoot></table></div>
-      <div class="box"><h3>Credit cards collected — ${mLabel(sel)}</h3>
+      <div class="box"><h3>Credit cards collected — ${rLabel}</h3>
         <div class="kpi" style="border:0;padding:0"><div class="n money">${money(ccCur?ccCur.cc_collected:0)}</div>
         <div class="d muted">${ccCur?num(ccCur.payments)+' payments':'—'}</div></div>
         <div class="note">Note: our warehouse currently holds a recent window of Cloudbeds transactions, so
@@ -236,10 +274,10 @@
 
     // ===== charts =====
     const c1=v=>v.map((_,i)=>`hsl(${200+i*28},70%,55%)`);
-    chart('cSrc',{type:'bar',data:{labels:src.map(r=>r.source_bucket),
+    chart('cSrc',{type:'bar',data:{labels:src.map(r=>r.key),
       datasets:[{label:'Revenue',data:src.map(r=>r.revenue),backgroundColor:c1(src)}]},
       options:{plugins:{legend:{display:false}}}});
-    chart('cVilla',{type:'bar',data:{labels:vil.map(r=>r.villa),
+    chart('cVilla',{type:'bar',data:{labels:vil.map(r=>r.key),
       datasets:[{label:'Revenue',data:vil.map(r=>r.revenue),backgroundColor:c1(vil)}]},
       options:{plugins:{legend:{display:false}}}});
 
