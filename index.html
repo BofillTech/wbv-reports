@@ -257,6 +257,9 @@
         {type:'bar', title:'Cloudbeds recorded − Auth.net settled, by month (~0 = reconciled)', source:'rpt_authnet_recon_month', groupBy:'month', agg:'difference', sortKey:true, fmt:'money'},
         {type:'bar', title:'Card money by day — new booking vs existing (reconciles to Auth.net)', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'day', agg:'amount', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, dateKey:true, fmt:'money'},
         {type:'bar', title:'Card money by month — new booking vs existing', source:'rpt_cb_cards_new_vs_existing', dateField:'day', groupBy:'month', agg:'amount', seriesBy:'booking_type', seriesOrder:['New booking (deposit)','Existing booking (balance)'], sortKey:true, fmt:'money'}
+        ,
+        {type:'bar', title:'Bank deposits by day — Amex vs Visa/MC/Disc (First Bank)', source:'rpt_bank_deposits_by_day', dateField:'day', groupBy:'day', seriesBy:'card_type', agg:'deposited', seriesOrder:['Amex','Visa/MC/Disc'], sortKey:true, dateKey:true, fmt:'money'},
+        {type:'bar', title:'Bank deposited − card processed, by month (net, ≈0 = reconciled)', source:'rpt_bank_recon_month', groupBy:'month', agg:'difference', sortKey:true, fmt:'money'}
       ],
       cols:[['settlement_date','Settled','date'],['last_name','Last name'],['first_name','First'],['account_type','Card'],['account_number','Last 4'],['amount','Amount','money'],['transaction_status','Status'],['invoice_number','CB ref']] },
 
@@ -324,6 +327,8 @@
         {type:'bar', title:'By card type — Visa/MC/Disc combined vs Amex (matches bank deposits)', source:'rpt_payment_cards_by_day', dateField:'day', groupBy:'card_group', agg:'total', fmt:'money'},
         {type:'bar', title:'Total by payment method', source:'rpt_payment_processing', dateField:'day', groupBy:'payment_method', agg:'total', fmt:'money'},
         {type:'bar', title:'New booking (deposit) vs existing booking (balance)', source:'rpt_payment_new_vs_existing', dateField:'day', groupBy:'category', agg:'total', fmt:'money'}
+        ,
+        {type:'bar', title:'Bank deposits by day — Amex vs Visa/MC/Disc (First Bank)', source:'rpt_bank_deposits_by_day', dateField:'day', groupBy:'day', seriesBy:'card_type', agg:'deposited', seriesOrder:['Amex','Visa/MC/Disc'], sortKey:true, dateKey:true, fmt:'money'}
       ],
       cols:[['day','Date','date'],['guest_name','Guest','strong'],['room_unit','Room'],['payment_method','Card / method'],['card_last4','Last 4'],['total','Amount','money'],['source','Source'],['reservation_id','Res #']] },
 
