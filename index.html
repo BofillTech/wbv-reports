@@ -152,6 +152,7 @@
     if(t==='pct')   return esc(v)+'%';
     if(t==='disc'){ const d=Number(v); if(isNaN(d)) return '<span class="muted">—</span>'; const c=d>=20?'#b91c1c':d>0?'#b45309':d<0?'#15803d':'#64748b'; const t2=d>0?('-'+d+'%'):(d<0?('+'+Math.abs(d)+'%'):'0%'); return '<span style="color:'+c+';font-weight:600">'+t2+(d>=20?' ⚠':'')+'</span>'; }
     if(t==='days'){ const d=Number(v)||0; const cls=d>=14?'days-hot':d>=7?'days-warm':'days-ok'; return '<span class="pill '+cls+'">'+d+'</span>'; }
+    if(t==='recon'){ if(v==null||v==='') return '<span class="muted">—</span>'; const a=Math.abs(Number(v)); const c=a<=1?'#15803d':a<=50?'#16a34a':a<=200?'#d97706':'#dc2626'; const bg=a<=1?'rgba(21,128,61,.16)':a<=50?'rgba(34,197,94,.16)':a<=200?'rgba(245,158,11,.20)':'rgba(239,68,68,.16)'; const lbl=a<=1?'Perfect':a<=50?'Close':a<=200?'Off':'Way off'; const amt=(Number(v)<0?'-$':'$')+Math.abs(Number(v)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}); return '<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-weight:700;font-size:12px;background:'+bg+';color:'+c+'">● '+lbl+' ('+amt+')</span>'; }
     return esc(v);
   };
   const esc = s => String(s).replace(/&amp;/g,'&').replace(/&#0?39;/g,"'").replace(/&quot;/g,'"').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
@@ -416,7 +417,7 @@
       desc:'Matches each day’s card processing (Authorize.net settled) to the bank deposit that lands 1–3 days later, split Amex vs Visa/MC/Disc. Visa/MC/Disc posts next-day at the exact amount; Amex posts net of its ~3% fee. Weekend settlements batch into one deposit (flagged). Filter by processed date or stream.',
       view:'rpt_proc_deposit_match', order:'processed_date.desc', dateField:'processed_date', dateGran:'day', dateLabel:'processed date',
       selectFilter:{field:'stream', label:'Stream'},
-      cols:[['processed_date','Processed','date'],['stream','Stream'],['processed','Processed','money'],['deposit_date','Deposited on','date'],['lag_days','Lag (days)'],['deposit_total','Deposit total','money'],['batch_days','Batch days'],['batch_processed_sum','Batch proc sum','money'],['batch_difference','Difference','money'],['match_status','Status']] },
+      cols:[['processed_date','Processed','date'],['stream','Stream'],['processed','Processed','money'],['deposit_date','Deposited on','date'],['lag_days','Lag (days)'],['deposit_total','Deposit total','money'],['batch_days','Batch days'],['batch_processed_sum','Batch proc sum','money'],['batch_difference','Difference','money'],['recon_residual','Match','recon'],['match_status','Status']] },
   ];
 
   // Category → report numbers (order within each list = display order). Numbers stay fixed.
