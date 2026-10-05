@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>White Bay Villas — Cancellations (Held Deposits)</title>
+<style>
+  :root{--bg:#ffffff;--panel:#ffffff;--line:#e4e8ee;--txt:#1b2430;--muted:#64748b;--accent:#0284c7;--green:#15803d;--red:#ef4444;--amber:#f59e0b;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  header{padding:18px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;position:sticky;top:0;background:var(--bg);z-index:20}
+  header h1{font-size:18px;margin:0;font-weight:650}
+  header .sub{color:var(--muted);font-size:13px;margin-top:2px}
+  .wrap{padding:20px 26px;max-width:1550px;margin:0 auto}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 12px;font-weight:640;cursor:pointer;font-size:13.5px}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  select,input,textarea{background:#fff;color:var(--txt);border:1px solid var(--line);border-radius:7px;padding:6px 8px;font-size:13px;font-family:inherit}
+  .toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .kpi .l{color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;font-weight:700}
+  .kpi .n{font-size:24px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  th,td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.03em;background:#eef3f8}
+  tr:last-child td{border-bottom:none}
+  .money{font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  .gate{position:fixed;inset:0;background:#f7f9fc;display:flex;align-items:center;justify-content:center;z-index:50}
+  .gate .box{background:#fff;border:1px solid var(--line);border-radius:14px;padding:28px;width:330px;text-align:center}
+  .gate input{width:100%;padding:11px;margin:14px 0;text-align:center;font-size:15px}
+  .err{color:var(--red);font-size:13px;min-height:18px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-weight:700;font-size:11px}
+  .future{background:rgba(2,132,199,.14);color:#0369a1}
+  textarea{min-width:150px;max-width:240px;height:34px;resize:vertical}
+  .savecell{white-space:nowrap}
+  .ok{font-size:12px;font-weight:700;margin-left:6px}
+</style>
+</head>
+<body>
+  <div class="gate" id="gate"><div class="box">
+    <div style="font-weight:650;font-size:16px">White Bay Villas</div>
+    <div class="muted" style="font-size:13px;margin-top:4px">Cancellations — Held Deposits</div>
+    <input id="code" type="password" placeholder="Access code" autofocus />
+    <div class="err" id="gateErr"></div>
+    <button class="btn" onclick="tryGate()" style="width:100%">Enter</button>
+  </div></div>
+  <header>
+    <div><h1>25. Cancellations — Held Deposits</h1>
+      <div class="sub">Canceled bookings where we still hold a deposit — log why they canceled and the disposition. Edits save instantly.</div></div>
+    <div style="display:flex;gap:10px;align-items:center"><a class="btn ghost" href="index.html">All reports</a><span id="status" class="muted" style="font-size:12px"></span></div>
+  </header>
+  <div class="wrap" id="app"><p class="muted">Enter the access code to load…</p></div>
+<script>
+  const SUPABASE_URL="https://oyxyhxuzufidxfdcwszo.supabase.co";
+  const ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ";
+  const ACCESS_CODE="wbv2026";
+  const RH={apikey:ANON,Authorization:`Bearer ${ANON}`,'Accept-Profile':'wbv'};
+  const WH={apikey:ANON,Authorization:`Bearer ${ANON}`,'Content-Type':'application/json','Content-Profile':'wbv','Prefer':'resolution=merge-duplicates,return=representation'};
+  const DISPOS=['Pending','Full credit → future stay','Cancellation fee','Partial (credit + fee)','Refunded'];
+  let ROWS=[];
+  const money=n=>(n==null||n===''?'—':'$'+Number(n).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}));
+  const dfmt=s=>{if(!s)return '—';const m=String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);const d=m?new Date(+m[1],+m[2]-1,+m[3]):new Date(s);return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'});};
+  const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  function tryGate(){if(document.getElementById('code').value.trim()===ACCESS_CODE){document.getElementById('gate').style.display='none';boot();}else document.getElementById('gateErr').textContent='Incorrect code';}
+  document.getElementById('code').addEventListener('keydown',e=>{if(e.key==='Enter')tryGate();});
+  async function boot(){
+    const st=document.getElementById('status');st.textContent='Loading…';
+    try{
+      const r=await fetch(`${SUPABASE_URL}/rest/v1/rpt_cancellations_held_full?select=*&order=checkin.desc`,{headers:RH});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      ROWS=await r.json(); st.textContent='Updated '+new Date().toLocaleTimeString(); render();
+    }catch(e){document.getElementById('app').innerHTML='<p style="color:var(--red)">Could not load: '+esc(e.message||e)+'</p>';st.textContent='Error';}
+  }
+  function curDisp(){const s=document.getElementById('fDisp');return s?s.value:'';}
+  function curFut(){const c=document.getElementById('fFut');return c?c.checked:false;}
+  function filtered(){const disp=curDisp(),fut=curFut();return ROWS.filter(r=>(!disp||(r.disposition||'Pending')===disp)&&(!fut||r.future_stay));}
+  function render(){
+    const disp=curDisp(),fut=curFut();
+    const rows=filtered();
+    const totHeld=ROWS.reduce((a,r)=>a+Number(r.held||0),0);
+    const futHeld=ROWS.filter(r=>r.future_stay).reduce((a,r)=>a+Number(r.held||0),0);
+    const pending=ROWS.filter(r=>(r.disposition||'Pending')==='Pending').length;
+    let h=`<div class="kpis">
+      <div class="kpi"><div class="l">Total held (canceled)</div><div class="n money" style="color:var(--amber)">${money(totHeld)}</div><div class="muted" style="font-size:12px">${ROWS.length} bookings</div></div>
+      <div class="kpi"><div class="l">Held on future stays</div><div class="n money" style="color:var(--accent)">${money(futHeld)}</div><div class="muted" style="font-size:12px">${ROWS.filter(r=>r.future_stay).length} bookings</div></div>
+      <div class="kpi"><div class="l">Pending a decision</div><div class="n">${pending}</div><div class="muted" style="font-size:12px">need reason / disposition</div></div>
+    </div>`;
+    h+=`<div class="toolbar">
+      <span class="muted">Disposition:</span>
+      <select id="fDisp" onchange="render()"><option value="">All</option>${DISPOS.map(d=>`<option${disp===d?' selected':''}>${esc(d)}</option>`).join('')}</select>
+      <label style="font-size:13px"><input type="checkbox" id="fFut" ${fut?'checked':''} onchange="render()"> Future stays only</label>
+      <button class="btn ghost" onclick="boot()">Refresh</button>
+      <button class="btn ghost" onclick="dlCSV()">Download CSV</button>
+      <span class="muted" style="font-size:12px">Tip: save each row before switching filters.</span>
+    </div>`;
+    h+='<div style="overflow-x:auto"><table><thead><tr><th>Res #</th><th>Guest</th><th>Villa</th><th>Check-in</th><th>Paid</th><th>Refunded</th><th>Held</th><th>Why canceled</th><th>Disposition</th><th>Credit/Fee $</th><th>Notes</th><th></th></tr></thead><tbody>';
+    for(const r of rows){
+      const id=r.reservation_id;
+      h+=`<tr data-id="${esc(id)}">
+        <td><strong>${esc(id)}</strong>${r.future_stay?' <span class="pill future">future</span>':''}</td>
+        <td>${esc(r.guest_name)}</td><td>${esc(r.villa)}</td><td class="muted">${dfmt(r.checkin)}</td>
+        <td class="money">${money(r.paid)}</td><td class="money">${money(r.refunded)}</td><td class="money"><strong>${money(r.held)}</strong></td>
+        <td><textarea data-f="cancel_reason" placeholder="reason…">${esc(r.cancel_reason)}</textarea></td>
+        <td><select data-f="disposition">${DISPOS.map(d=>`<option${((r.disposition||'Pending')===d)?' selected':''}>${esc(d)}</option>`).join('')}</select></td>
+        <td><input data-f="amount" type="number" step="0.01" style="width:100px" value="${r.disposition_amount!=null?r.disposition_amount:''}"></td>
+        <td><textarea data-f="notes" placeholder="notes…">${esc(r.notes)}</textarea></td>
+        <td class="savecell"><button class="btn" onclick="saveRow('${esc(id)}',this)">Save</button><span class="ok" data-ok></span></td>
+      </tr>`;
+    }
+    if(!rows.length) h+='<tr><td colspan="12" class="muted">No matching rows.</td></tr>';
+    h+='</tbody></table></div>';
+    document.getElementById('app').innerHTML=h;
+  }
+  async function saveRow(id,btn){
+    const tr=btn.closest('tr');
+    const g=f=>tr.querySelector(`[data-f="${f}"]`);
+    const payload={reservation_id:id,
+      cancel_reason:g('cancel_reason').value||null,
+      disposition:g('disposition').value,
+      amount:g('amount').value===''?null:Number(g('amount').value),
+      notes:g('notes').value||null,
+      updated_by:'hub', updated_at:new Date().toISOString()};
+    const ok=tr.querySelector('[data-ok]'); ok.textContent='Saving…'; ok.style.color='var(--muted)';
+    try{
+      const res=await fetch(`${SUPABASE_URL}/rest/v1/cancellation_notes`,{method:'POST',headers:WH,body:JSON.stringify(payload)});
+      if(!res.ok) throw new Error('HTTP '+res.status+' '+(await res.text()));
+      const saved=(await res.json())[0]||payload;
+      const i=ROWS.findIndex(x=>x.reservation_id===id);
+      if(i>=0){ROWS[i].cancel_reason=saved.cancel_reason;ROWS[i].disposition=saved.disposition;ROWS[i].disposition_amount=saved.amount;ROWS[i].notes=saved.notes;}
+      ok.textContent='Saved ✓'; ok.style.color='var(--green)';
+      setTimeout(()=>{ok.textContent='';},2500);
+    }catch(e){ ok.textContent='Error'; ok.style.color='var(--red)'; }
+  }
+  function dlCSV(){
+    const rows=filtered();
+    const cols=[['reservation_id','Res #'],['guest_name','Guest'],['villa','Villa'],['checkin','Check-in'],['paid','Paid'],['refunded','Refunded'],['held','Held'],['cancel_reason','Why canceled'],['disposition','Disposition'],['disposition_amount','Credit/Fee'],['notes','Notes']];
+    const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    const lines=[cols.map(c=>q(c[1])).join(',')];
+    rows.forEach(r=>lines.push(cols.map(c=>q(r[c[0]])).join(',')));
+    const blob=new Blob([lines.join('\n')],{type:'text/csv'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download='wbv-cancellations-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(u);
+  }
+</script>
+</body>
+</html>
