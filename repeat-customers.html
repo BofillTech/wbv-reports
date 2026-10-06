@@ -163,7 +163,7 @@ function render(d){
   html+='<div class="card" style="margin-bottom:0"><h3>Repeat guests ('+numf((d.repeat_list||[]).length)+') — click a column to sort</h3>'
     +'<div class="tbar"><input id="search" placeholder="Search name or email…" oninput="renderTable()">'
     +'<button class="btn ghost" onclick="exportCSV()">Download CSV</button>'
-    +'<span class="sub">Excludes owner/staff & internal bookings. Stays include upcoming confirmed reservations.</span></div>'
+    +'<span class="sub">Excludes owner/staff & internal bookings. Stays include upcoming confirmed reservations. &ldquo;Pre-CB&rdquo; = prior stays from the old (RDP) system folded in; revenue shown is Cloudbeds-era only.</span></div>'
     +'<div class="tbl-wrap"><div id="tbl"></div></div></div>';
   document.getElementById('out').innerHTML=html;
   LIST=d.repeat_list||[]; SORT={col:'stays',dir:-1};
@@ -189,7 +189,7 @@ function drawCharts(d){
       scales:{y:{beginAtZero:true,ticks:{precision:0}}}}}));
 }
 
-const COLS=[['name','Guest',0],['email','Email',0],['stays','Stays',1],['nights','Nights',1],['avg_los','Avg nights/stay',1],['revenue','Revenue',1],['first_stay','First stay',2],['last_stay','Last stay',2]];
+const COLS=[['name','Guest',0],['email','Email',0],['stays','Stays',1],['rdp_prior','Pre-CB',1],['nights','Nights',1],['avg_los','Avg nights/stay',1],['revenue','Revenue',1],['first_stay','First stay',2],['last_stay','Last stay',2]];
 function renderTable(){
   const q=(document.getElementById('search')?.value||'').toLowerCase().trim();
   let rows=LIST.filter(r=>!q || String(r.name).toLowerCase().includes(q) || String(r.email).toLowerCase().includes(q));
@@ -202,7 +202,7 @@ function renderTable(){
   let h='<table><thead><tr>'+COLS.map(c=>'<th class="'+(c[2]===1?'num':'')+'" onclick="sortBy(\''+c[0]+'\')">'+c[1]+arrow(c[0])+'</th>').join('')+'</tr></thead><tbody>';
   h+=rows.map(r=>'<tr>'
     +'<td>'+esc(r.name)+'</td><td>'+esc(r.email)+'</td>'
-    +'<td class="num">'+numf(r.stays)+'</td><td class="num">'+numf(r.nights)+'</td>'
+    +'<td class="num">'+numf(r.stays)+'</td><td class="num">'+(r.rdp_prior>0?('+'+r.rdp_prior):'—')+'</td><td class="num">'+numf(r.nights)+'</td>'
     +'<td class="num">'+(r.avg_los==null?'-':r.avg_los)+'</td><td class="num">'+money(r.revenue)+'</td>'
     +'<td>'+fmtD(r.first_stay)+'</td><td>'+fmtD(r.last_stay)+'</td></tr>').join('');
   h+='</tbody></table>';
@@ -214,7 +214,7 @@ function exportCSV(){
   const q=(document.getElementById('search')?.value||'').toLowerCase().trim();
   const rows=LIST.filter(r=>!q || String(r.name).toLowerCase().includes(q) || String(r.email).toLowerCase().includes(q));
   const head=COLS.map(c=>c[1]).join(',');
-  const body=rows.map(r=>[r.name,r.email,r.stays,r.nights,r.avg_los,r.revenue,r.first_stay,r.last_stay]
+  const body=rows.map(r=>[r.name,r.email,r.stays,r.rdp_prior,r.nights,r.avg_los,r.revenue,r.first_stay,r.last_stay]
     .map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(',')).join('\n');
   const blob=new Blob([head+'\n'+body],{type:'text/csv'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='repeat-customers.csv'; a.click();
