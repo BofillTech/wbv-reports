@@ -90,6 +90,7 @@ const SUPABASE_URL='https://oyxyhxuzufidxfdcwszo.supabase.co';
 const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im95eHloeHV6dWZpZHhmZGN3c3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MzEwODYsImV4cCI6MjA5ODQwNzA4Nn0.-ZY7wFR2pdt3S9wzIoiOWkMCF9wDzTdIuEq_5KOsfMQ';
 const H={apikey:ANON,Authorization:'Bearer '+ANON,'Content-Type':'application/json'};
 const PLAT={google:{label:'Google',color:'#4285F4'},tripadvisor:{label:'TripAdvisor',color:'#00AA6C'},opentable:{label:'OpenTable',color:'#DA3743'}};
+const VENUE_PLATFORMS={white_bay_villas:['google','tripadvisor'],alices_restaurant:['google','opentable']};
 let CH=[];
 // ---- Sidebar (mirrors the hub) -----------------------------------------
 const REPORTS=[
@@ -162,14 +163,14 @@ async function load(){
     }));
   }catch(e){ el.innerHTML='<p style="color:var(--red)">Could not load: '+e+'</p>'; return; }
   let html='';
-  VENUES.forEach(function(v,i){ html+=sectionHTML(v[1], results[i], i); });
+  VENUES.forEach(function(v,i){ html+=sectionHTML(v[1], results[i], i, VENUE_PLATFORMS[v[0]]||Object.keys(PLAT)); });
   el.innerHTML=html;
-  VENUES.forEach(function(v,i){ var d=results[i]||{}; if(((d.kpis&&d.kpis.all_time_total)||0)>0 || (d.reviews||[]).length>0){ drawWeekly(d.weekly||[],'wk_'+i); drawDist(d.reviews||[],'rd_'+i); } });
+  VENUES.forEach(function(v,i){ var d=results[i]||{}; var plats=VENUE_PLATFORMS[v[0]]||Object.keys(PLAT); if(((d.kpis&&d.kpis.all_time_total)||0)>0 || (d.reviews||[]).length>0){ drawWeekly(d.weekly||[],'wk_'+i,plats); drawDist(d.reviews||[],'rd_'+i,plats); } });
   document.getElementById('foot').innerHTML='Counts of record: TripAdvisor nightly snapshots &amp; Google API history. Data and reviews provided by <a href="https://www.tripadvisor.com" target="_blank" rel="noopener">Tripadvisor</a>, Google, and OpenTable. Times in America/Tortola (AST).';
 }
-function sectionHTML(name, d, idx){
+function sectionHTML(name, d, idx, plats){
   d=d||{}; const k=d.kpis||{}, bp=k.by_platform||{};
-  const platCards=Object.keys(PLAT).map(function(s){var v=bp[s]||{}; return kpi(PLAT[s].label+' — in period', (v.in_period||0), (v.all_time||0)+' all-time'+(v.avg_rating?(' &middot; ★ '+v.avg_rating):''), PLAT[s].color);}).join('');
+  const platCards=(plats||Object.keys(PLAT)).map(function(s){var v=bp[s]||{}; return kpi(PLAT[s].label+' — in period', (v.in_period||0), (v.all_time||0)+' all-time'+(v.avg_rating?(' &middot; ★ '+v.avg_rating):''), PLAT[s].color);}).join('');
   let html='<div class="venue-sec"><div class="venue-h">'+esc(name)+'<span class="vtag">'+Number(k.all_time_total||0).toLocaleString()+' all-time</span></div>';
   html+='<div class="kpis">'
     +kpi('Reviews in period', k.total_in_period||0, 'across all platforms','var(--accent)')
@@ -195,18 +196,18 @@ function platPill(s){ const p=PLAT[s]||{label:s,color:'#64748b'}; return '<span 
 function stars(n){ n=Number(n)||0; return '<span style="color:var(--amber)">'+'★'.repeat(n)+'</span><span style="color:var(--line)">'+'★'.repeat(5-n)+'</span>'; }
 function fmtDate(s){ if(!s) return '—'; return new Date(s).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'}); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>]/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c];}); }
-function drawWeekly(weekly,cid){
+function drawWeekly(weekly,cid,plats){
   const weeks=[...new Set(weekly.map(w=>w.week))].sort();
-  const sources=Object.keys(PLAT);
+  const sources=plats||Object.keys(PLAT);
   const ds=sources.map(function(s){return {label:PLAT[s].label,backgroundColor:PLAT[s].color,data:weeks.map(function(w){var f=weekly.find(x=>x.week===w&&x.source===s);return f?f.n:0;}),stack:'s'};});
   let run=0; const totals=weeks.map(function(w){ run+=weekly.filter(x=>x.week===w).reduce((a,x)=>a+x.n,0); return run; });
   ds.push({type:'line',label:'Running total',data:totals,borderColor:'#1b2430',backgroundColor:'transparent',yAxisID:'y1',tension:.3,pointRadius:2});
   const cv=document.getElementById(cid); if(!cv) return;
   CH.push(new Chart(cv,{type:'bar',data:{labels:weeks.map(fmtDate),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}},y1:{position:'right',beginAtZero:true,grid:{drawOnChartArea:false}}}}}));
 }
-function drawDist(reviews,cid){
+function drawDist(reviews,cid,plats){
   const buckets=[1,2,3,4,5];
-  const sources=Object.keys(PLAT);
+  const sources=plats||Object.keys(PLAT);
   const ds=sources.map(function(s){return {label:PLAT[s].label,backgroundColor:PLAT[s].color,data:buckets.map(function(b){return reviews.filter(r=>r.source===s&&Number(r.rating)===b).length;})};});
   const cv=document.getElementById(cid); if(!cv) return;
   CH.push(new Chart(cv,{type:'bar',data:{labels:buckets.map(b=>b+'★'),datasets:ds},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{boxWidth:12}}},scales:{x:{stacked:true,grid:{color:'#e4e8ee'}},y:{stacked:true,beginAtZero:true,grid:{color:'#e4e8ee'}}}}}));
